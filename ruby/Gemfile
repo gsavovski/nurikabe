@@ -1,0 +1,9 @@
+source "http://rubygems.org"
+
+# gem 'matrix'
+gem 'colorize'
+gem 'pry', '0.9.10'
+gem 'virb'
+gem 'thor'
+gem 'rspec'
+
