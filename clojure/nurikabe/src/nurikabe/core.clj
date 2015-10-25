@@ -1,5 +1,8 @@
 (ns nurikabe.core
-  (:gen-class))
+  (:gen-class)
+  ; (:require clojure.pprint)
+  ; (:use clojure.pprint)
+  )
 (use 'alex-and-georges.debug-repl)
 
 
@@ -110,6 +113,15 @@
                        []
                        areas))]
      (summon-areas-for-tile board tile new-areas)))))
+
+
+(defn generate-all-possible-areas-for-board []
+  (reduce
+    (fn [result tile] (assoc result (keyword (str tile)) (summon-areas-for-tile b tile)))
+    {}
+    (get-numbered-tiles)
+    )
+  )
 
 
 
