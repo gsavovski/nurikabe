@@ -59,8 +59,8 @@
 (defn get-numbered-tiles []
    (filter
      (fn [tile] (pos? (get-tile-value b tile)))
-     (vec (for  [x  (range 0 (board-row-count)),
-                 y  (range 0 (board-column-count))]
+     (vec (for  [x  (range (board-column-count)),
+                 y  (range (board-row-count))]
            [x y]))
     ))
 
@@ -125,19 +125,32 @@
     )
   )
 
-                          ; (if-not (some #{direction} area)
+; Improved
+; TODO: Remove the bottom one
+; (defn populate-board-with
+;   [area]
+;     (reduce (fn [new-board [x y]]
+;                (let [value (if (> (get-tile-value b [x y]) 1)  (get-tile-value b [x y]) 1) ]
+;                 (assoc new-board x (assoc  (nth new-board x) y value)))
+;                 )
+;      b
+;      area
+;     ))
+
 
 (defn populate-board-with
   [area]
     (reduce (fn [new-board [x y]]
              (if (some #{[x y]} area)
-                (assoc new-board x (assoc  (nth new-board x) y 1))
+               (let [value (if (> (get-tile-value b [x y]) 1)  (get-tile-value b [x y]) 1) ]
+
+                (assoc new-board x (assoc  (nth new-board x) y value)))
                 (assoc new-board x (assoc  (nth new-board x) y (get-tile-value b [x y])))
                 ))
      b
+     ;TODO: change order of y and x
      (for  [y (range (board-row-count)) x (range (board-column-count))]  [x,y])
-    )
-    )
+    ))
 
 ; Some ASCII ESC color codes
 ; reset color
@@ -156,8 +169,8 @@
       (do
       (doall
         ; TODO remove 0s from range
-        (for  [y  (range 0 (board-row-count)),
-               x  (range 0 (board-column-count))]
+        (for  [x  (range (board-row-count)),
+               y  (range (board-column-count))]
         (let [value (get-tile-value board [x y])]
            (do
              (if (= value 0)
@@ -174,7 +187,7 @@
 
 
              ; Set new line
-             (if (= x (- (board-column-count) 1)) (println  "\u001b[49m"))))))
+             (if (= y (- (board-column-count) 1)) (println  "\u001b[49m"))))))
       ; Reset colors
       (print (str "\u001B[0m"))
       )
@@ -188,7 +201,7 @@
      (doall
        (for [area areas]
          (do
-         (println "Area: " area)
+         (println "Tile: " (name num-tile)  " Area: " area)
          (print-board (populate-board-with area))
          (println)
         ))
@@ -196,6 +209,15 @@
    )
   ))
 
+
+; For Fancy in place bash printing
+; Checkout:
+; man 5 terminfo
+; tput cuu 4 goes up 4 lines
+; tput el clears to end of line
+; function clearLastLine ()  {
+;   tput cuu 1 && tput el
+;     }
 
 
 (defn -main
