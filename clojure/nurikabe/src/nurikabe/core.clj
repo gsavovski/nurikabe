@@ -49,11 +49,14 @@
 (defn board-column-count []
   (count (first b)))
 
-; TODO: explore walk
+
+ ; TODO: explore walk
 ; (use 'clojure.walk :only  [prewalk])
 ; (prewalk #(if  (number? %)  (inc %) %) matrix)
 ; =>  [[2 3 4]  [5 6 7]  [8 9 10]]
- (defn get-numbered-tiles []
+
+
+(defn get-numbered-tiles []
    (filter
      (fn [tile] (pos? (get-tile-value b tile)))
      (vec (for  [x  (range 0 (board-row-count)),
@@ -114,7 +117,6 @@
                        areas))]
      (summon-areas-for-tile board tile new-areas)))))
 
-
 (defn generate-all-possible-areas-for-board []
   (reduce
     (fn [result tile] (assoc result (keyword (str tile)) (summon-areas-for-tile b tile)))
@@ -123,6 +125,27 @@
     )
   )
 
+; reset color
+;(print (str "\u001B[0m"))
+; background 40 - 47, 48 reserved, 49 default
+; foreground 30 - 37, 38 reserved, 39 default
+; white background color
+;(print (str "\u001B[47m"))
+; black background color
+;(print (str "\u001B[49m"))
+ ; bold 1 , bold off 21
+; black foreground color
+;(print (str "\u001B[30m"))
+(defn print-area
+  [board area]
+
+  (vec (for  [x  (range 0 (board-row-count)),
+              y  (range 0 (board-column-count))]
+
+
+        (print (get-tile-value b [x y]) )
+        ))
+)
 
 
 (defn -main
