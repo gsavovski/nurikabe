@@ -136,16 +136,37 @@
  ; bold 1 , bold off 21
 ; black foreground color
 ;(print (str "\u001B[30m"))
-(defn print-area
-  [board area]
+(defn print-board
+  [area]
+      (do
+      (doall
+        (for  [x  (range 0 (board-row-count)),
+               y  (range 0 (board-column-count))]
+        (let [value (get-tile-value b [x y])]
+           (do
+             (if (= value 0)
+               (do
+               ; green bckg
+               (print "\u001b[46m")
+               (print "  ")
+               )
+               (do
+               ; white bckg
+               (print "\u001B[47m")
+               ; black font
+               (print "\u001B[30m")
+               (print  "" value))
+               )
 
-  (vec (for  [x  (range 0 (board-row-count)),
-              y  (range 0 (board-column-count))]
 
-
-        (print (get-tile-value b [x y]) )
-        ))
+             ; Set new line
+             (if (= y (- (board-row-count) 1)) (println  "\u001b[49m"))))))
+      ; Reset colors
+      (print (str "\u001B[0m"))
+      )
 )
+
+
 
 
 (defn -main
