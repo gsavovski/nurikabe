@@ -125,10 +125,10 @@
   ([board tile areas]
   (if (= (count (first areas)) (get-tile-value board tile))
     areas
-    (let [new-areas (seq (vec
+    (let [new-areas (vec
                        (reduce (fn [new-areas area] (concat new-areas (expansions-for-area area)))
                        []
-                       areas)))]
+                       areas))]
      (summon-areas-for-tile board tile new-areas)))))
 
 (defn generate-all-possible-areas-for-board []
