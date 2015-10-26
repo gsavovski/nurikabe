@@ -11,6 +11,19 @@
 (def B 0)   ; path or road
 (def W 1)   ; area or garden space
 
+(def puzzle-board-gm-walker-anderson
+   [[U U U U U U U U U U]
+    [U U 4 U 9 U U U U U]
+    [U 5 U U U 3 U U U U]
+    [U U U U U U U U U U]
+    [U U U U U 2 U U U U]
+    [U U U U 3 U U U U U]
+    [U U U U U U U U U U]
+    [U U U U 2 U U U 8 U]
+    [U U U U U 11 U 1 U U]
+    [U U U U U U U U U U]]
+)
+
 
 (def puzzle-board
   "Simple nurikabe puzzle"
@@ -31,7 +44,8 @@
 
 ; Current puzzle
 ; TODO: turn this into a global swappable atom
-(def b puzzle-board)
+; (def b puzzle-board)
+(def b puzzle-board-gm-walker-anderson)
 
 (defn get-tile-value
   [board [x y]]
@@ -111,10 +125,10 @@
   ([board tile areas]
   (if (= (count (first areas)) (get-tile-value board tile))
     areas
-    (let [new-areas (vec
+    (let [new-areas (seq (vec
                        (reduce (fn [new-areas area] (concat new-areas (expansions-for-area area)))
                        []
-                       areas))]
+                       areas)))]
      (summon-areas-for-tile board tile new-areas)))))
 
 (defn generate-all-possible-areas-for-board []
