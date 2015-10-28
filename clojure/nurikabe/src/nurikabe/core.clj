@@ -2,6 +2,7 @@
   (:gen-class)
   ; (:require clojure.pprint)
   ; (:use clojure.pprint)
+  (require  [clojure.set :as s])
   )
 (use 'alex-and-georges.debug-repl)
 
@@ -11,9 +12,11 @@
 (def B 0)   ; path or road
 (def W 1)   ; area or garden space
 
+
+
 (def puzzle-board-gm-walker-anderson
    [[U U U U U U U U U U]
-    [U U 4 U 9 U U U U U]
+    [U U 4 U 11 U U U U U]
     [U 5 U U U 3 U U U U]
     [U U U U U U U U U U]
     [U U U U U 2 U U U U]
@@ -22,6 +25,42 @@
     [U U U U 2 U U U 8 U]
     [U U U U U 11 U 1 U U]
     [U U U U U U U U U U]]
+)
+
+; 32x32
+(def puzzle-board-tester
+   [[U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U 3 U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]]
 )
 
 
@@ -45,7 +84,8 @@
 ; Current puzzle
 ; TODO: turn this into a global swappable atom
 ; (def b puzzle-board)
-(def b puzzle-board-gm-walker-anderson)
+; (def b puzzle-board-gm-walker-anderson)
+(def b puzzle-board-tester)
 
 (defn get-tile-value
   [board [x y]]
@@ -55,6 +95,7 @@
 
 (def DIRECTIONS
   [[0 1] [0 -1] [1 0] [-1 0]])
+
 
 (defn board-row-count []
   (count b))
@@ -96,7 +137,8 @@
                    ; The tile is available
                    ; TODO: Create restricted board
                    ; To not allow tiles which border on area
-                   (not (zero? (get-tile-value b [i j])))))
+                  ; (not (zero? (get-tile-value b [i j])))
+                   ))
      all-tiles)))
 
 
@@ -105,31 +147,53 @@
   [area]
       ; Clean nils
        (remove nil?
-        (reduce
-          (fn [new-areas tile]
-            (vec (concat
-              new-areas
-              (vec (map (fn [direction]
-                          ; How to have this not concat nils
-                          (if-not (some #{direction} area)
+         (reduce
+            (fn [new-areas tile]
+                (s/union
+                  new-areas
+                  (set (map (fn [direction]
+                           ; How to have this not concat nils
+                            (if-not (some #{direction} area)
                            (conj area direction)))
-                (possible-directions-for-tile tile)))
-              )))
-          []
-          area)))
+                   (possible-directions-for-tile tile)))))
+          #{}
+          area
+          )))
 
 
 (defn summon-areas-for-tile
   ; Default value for areas is the tile itself
   ([board tile] (summon-areas-for-tile board tile [[tile]]))
   ([board tile areas]
+  (do
+    (println "Area count: " (count (first areas)))
   (if (= (count (first areas)) (get-tile-value board tile))
     areas
     (let [new-areas (vec
-                       (reduce (fn [new-areas area] (concat new-areas (expansions-for-area area)))
+                       (reduce (fn [new-areas area] (doall (concat new-areas (expansions-for-area area))))
                        []
                        areas))]
-     (summon-areas-for-tile board tile new-areas)))))
+     (summon-areas-for-tile board tile new-areas))))))
+
+
+(defn summon-areas-for-tile-into-set
+  ; Default value for areas is the tile itself
+  ([board tile] (summon-areas-for-tile-into-set board tile #{[tile]}))
+  ([board tile areas]
+  (do
+    (println "Total Area count: " (count areas))
+    (println "Area count: " (count (first areas)))
+    (println "NEW Areas : "  areas)
+  (if (= (count (first areas)) (get-tile-value board tile))
+    areas
+    (let [new-areas
+                       (reduce (fn [new-areas area] (s/union new-areas  (expansions-for-area area)))
+                       #{}
+                       areas)]
+     (summon-areas-for-tile-into-set board tile new-areas))))))
+
+
+
 
 (defn generate-all-possible-areas-for-board []
   (reduce
@@ -157,7 +221,6 @@
     (reduce (fn [new-board [x y]]
              (if (some #{[x y]} area)
                (let [value (if (> (get-tile-value b [x y]) 1)  (get-tile-value b [x y]) 1) ]
-
                 (assoc new-board x (assoc  (nth new-board x) y value)))
                 (assoc new-board x (assoc  (nth new-board x) y (get-tile-value b [x y])))
                 ))
