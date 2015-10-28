@@ -44,7 +44,7 @@
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
-    [U U U U U U U U U U U U U U U 3 U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U 10 U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
@@ -145,6 +145,7 @@
 (defn expansions-for-area
   "Expands given area in all possible directions by one tile"
   [area]
+      (set
       ; Clean nils
        (remove nil?
          (reduce
@@ -158,7 +159,7 @@
                    (possible-directions-for-tile tile)))))
           #{}
           area
-          )))
+          ))))
 
 
 (defn summon-areas-for-tile
@@ -178,18 +179,19 @@
 
 (defn summon-areas-for-tile-into-set
   ; Default value for areas is the tile itself
-  ([board tile] (summon-areas-for-tile-into-set board tile #{[tile]}))
+  ([board tile] (summon-areas-for-tile-into-set board tile #{#{tile}}))
   ([board tile areas]
   (do
     (println "Total Area count: " (count areas))
     (println "Area count: " (count (first areas)))
-    (println "NEW Areas : "  areas)
+    ; (println "NEW Areas : "  areas)
+    (println "NEW Areas class : "  (class areas))
   (if (= (count (first areas)) (get-tile-value board tile))
     areas
     (let [new-areas
-                       (reduce (fn [new-areas area] (s/union new-areas  (expansions-for-area area)))
-                       #{}
-                       areas)]
+                 (reduce (fn [new-areas area] (s/union new-areas  (expansions-for-area area)))
+                 #{}
+                 areas)]
      (summon-areas-for-tile-into-set board tile new-areas))))))
 
 
