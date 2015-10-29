@@ -184,8 +184,7 @@
 (defn populate-board-with
   [area]
     (reduce (fn [new-board [x y]]
-               (let [tile-value (get-tile-value b [x y])
-                     value (if (> tile-value 1)  tile-value 1) ]
+               (let [value (max (get-tile-value b [x y]) 1)]
                  (assoc new-board x (assoc (nth new-board x) y value))))
     b
     area))
