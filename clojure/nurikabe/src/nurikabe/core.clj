@@ -44,7 +44,7 @@
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
-    [U U U U U U U U U U U U U U U 10 U U U U U U U U U U U U U U U U]
+    [U U U U U U U U U U U U U U U 3 U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
@@ -143,23 +143,21 @@
 
 
 (defn expansions-for-area
-  "Expands given area in all possible directions by one tile"
+  "Given an area, returns all possible
+  expansions for it by one tile"
   [area]
-      (set
-      ; Clean nils
-       (remove nil?
-         (reduce
-            (fn [new-areas tile]
-                (s/union
-                  new-areas
-                  (set (map (fn [direction]
-                           ; How to have this not concat nils
-                            (if-not (some #{direction} area)
-                           (conj area direction)))
-                   (possible-directions-for-tile tile)))))
-          #{}
-          area
-          ))))
+    (set
+      (reduce
+         (fn [new-areas tile]
+           (s/union
+             new-areas
+             (set
+               (keep (fn [direction]
+                       (if-not (contains? area direction)
+                         (s/union area #{direction})))
+               (possible-directions-for-tile tile)))))
+      #{}
+      area)))
 
 
 (defn summon-areas-for-tile
