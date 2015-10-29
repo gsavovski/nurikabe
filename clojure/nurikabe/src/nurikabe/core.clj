@@ -160,74 +160,36 @@
       area)))
 
 
-(defn summon-areas-for-tile
-  ; Default value for areas is the tile itself
-  ([board tile] (summon-areas-for-tile board tile [[tile]]))
-  ([board tile areas]
-  (do
-    (println "Area count: " (count (first areas)))
-  (if (= (count (first areas)) (get-tile-value board tile))
-    areas
-    (let [new-areas (vec
-                       (reduce (fn [new-areas area] (doall (concat new-areas (expansions-for-area area))))
-                       []
-                       areas))]
-     (summon-areas-for-tile board tile new-areas))))))
-
-
 (defn summon-areas-for-tile-into-set
   ; Default value for areas is the tile itself
   ([board tile] (summon-areas-for-tile-into-set board tile #{#{tile}}))
   ([board tile areas]
-  (do
-    (println "Total Area count: " (count areas))
-    (println "Area count: " (count (first areas)))
-    ; (println "NEW Areas : "  areas)
-    (println "NEW Areas class : "  (class areas))
   (if (= (count (first areas)) (get-tile-value board tile))
-    areas
+    (set areas)
     (let [new-areas
                  (reduce (fn [new-areas area] (s/union new-areas  (expansions-for-area area)))
                  #{}
                  areas)]
-     (summon-areas-for-tile-into-set board tile new-areas))))))
-
-
+     (summon-areas-for-tile-into-set board tile new-areas)))))
 
 
 (defn generate-all-possible-areas-for-board []
   (reduce
-    (fn [result tile] (assoc result (keyword (str tile)) (summon-areas-for-tile b tile)))
+    (fn [result tile] (assoc result (keyword (str tile)) (summon-areas-for-tile-into-set b tile)))
     {}
     (get-numbered-tiles)
     )
   )
 
-; Improved
-; TODO: Remove the bottom one
-; (defn populate-board-with
-;   [area]
-;     (reduce (fn [new-board [x y]]
-;                (let [value (if (> (get-tile-value b [x y]) 1)  (get-tile-value b [x y]) 1) ]
-;                 (assoc new-board x (assoc  (nth new-board x) y value)))
-;                 )
-;      b
-;      area
-;     ))
-
-
 (defn populate-board-with
   [area]
     (reduce (fn [new-board [x y]]
-             (if (some #{[x y]} area)
-               (let [value (if (> (get-tile-value b [x y]) 1)  (get-tile-value b [x y]) 1) ]
-                (assoc new-board x (assoc  (nth new-board x) y value)))
-                (assoc new-board x (assoc  (nth new-board x) y (get-tile-value b [x y])))
-                ))
-     b
-     ;TODO: change order of y and x
-     (for  [y (range (board-row-count)) x (range (board-column-count))]  [x,y])
-    ))
+               (let [tile-value (get-tile-value b [x y])
+                     value (if (> tile-value 1)  tile-value 1) ]
+                 (assoc new-board x (assoc (nth new-board x) y value))))
+    b
+    area))
+
 
 ; Some ASCII ESC color codes
 ; reset color
@@ -302,8 +264,7 @@
   [& args]
   (do
   (println "Hello, Nurikabe!")
-  (println "These are all areas for tile [0 0]")
-  (println (summon-areas-for-tile puzzle-board [0 0]))))
+  (println "These are all areas for tile [0 0]")))
 
 
 
