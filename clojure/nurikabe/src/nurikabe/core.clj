@@ -160,9 +160,9 @@
       area)))
 
 
-(defn summon-areas-for-tile-into-set
+(defn summon-areas-for-tile
   ; Default value for areas is the tile itself
-  ([board tile] (summon-areas-for-tile-into-set board tile #{#{tile}}))
+  ([board tile] (summon-areas-for-tile board tile #{#{tile}}))
   ([board tile areas]
   (if (= (count (first areas)) (get-tile-value board tile))
     (set areas)
@@ -170,12 +170,12 @@
                  (reduce (fn [new-areas area] (s/union new-areas  (expansions-for-area area)))
                  #{}
                  areas)]
-     (summon-areas-for-tile-into-set board tile new-areas)))))
+     (summon-areas-for-tile board tile new-areas)))))
 
 
 (defn generate-all-possible-areas-for-board []
   (reduce
-    (fn [result tile] (assoc result (keyword (str tile)) (summon-areas-for-tile-into-set b tile)))
+    (fn [result tile] (assoc result (keyword (str tile)) (summon-areas-for-tile b tile)))
     {}
     (get-numbered-tiles)
     )
