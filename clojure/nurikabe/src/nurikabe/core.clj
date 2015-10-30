@@ -193,6 +193,54 @@
           area))
 
 
+(defn get-area-tiles-in-board [board]
+   (filter
+     (fn [tile] (pos? (get-tile-value board tile)))
+     (vec (for  [x  (range (board-row-count)),
+                 y  (range (board-column-count))]
+           [x y]))
+    ))
+
+(defn possible-directions-for-tile-in-board
+  [[x y] board]
+  (let [all-tiles (all-directions-for-tile [x y])]
+    (remove (fn [[i j]]
+              (or (< i 0)
+                  (< j 0)
+                  (> i (- (board-row-count) 1))
+                  (> j (- (board-column-count) 1))
+                   ; The tile is available
+                   ; TODO: Create restricted board
+                   ; To not allow tiles which border on area
+                  (not (zero? (get-tile-value board [i j])))
+                   ))
+     all-tiles)))
+
+
+(defn create-restricted-board [board]
+  "Given a board with areas, surround all
+   areas with '-1' restrictred tiles, because
+  when discovering new areas we should not
+  colide with existing areas"
+  (reduce
+    (fn [new-board tile]
+      (reduce (fn [new-new-board [x y]]
+                (replace-tile new-new-board x y -1))
+              new-board
+              (possible-directions-for-tile-in-board tile board)))
+    board
+    (get-area-tiles-in-board board)))
+
+
+; http://stackoverflow.com/questions/18246549/cartesian-product-in-clojure
+(defn cart [colls]
+  (if (empty? colls)
+    '(())
+    (for [x (first colls)
+           more (cart (rest colls))]
+      (cons x more))))
+
+
 ; Some ASCII ESC color codes
 ; reset color
 ;(print (str "\u001B[0m"))
@@ -224,7 +272,10 @@
                  (print "\u001B[47m")
                  ; black font
                  (print "\u001B[30m")
-                 (print  "" value)))
+                 ; Prepend white space on single digit values
+                 (if (< (count (str value)) 2)
+                   (print  "" value)
+                   (print  value))))
 
 
              ; Set new line
