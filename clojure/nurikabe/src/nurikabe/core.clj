@@ -1,11 +1,11 @@
 (ns nurikabe.core
   (:gen-class)
-  ; (:require clojure.pprint)
-  ; (:use clojure.pprint)
-  (require  [clojure.set :as s])
+  (require [clojure.core.async :as async :refer  [>! <! >!! <!! go]])
+  (require [clojure.set :as s])
   )
-(use 'alex-and-georges.debug-repl)
 
+;Debugger tool
+(use 'alex-and-georges.debug-repl)
 
 ; Tile definitions
 (def U nil) ; undefined
@@ -44,7 +44,7 @@
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
-    [U U U U U U U U U U U U U U U 3 U U U U U U U U U U U U U U U U]
+    [3 U U U U U U U U U U U U U U 3 U U U U U U U U U U U U U U U 3]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
@@ -175,19 +175,22 @@
 
 (defn generate-all-possible-areas-for-board []
   (reduce
-    (fn [result tile] (assoc result (keyword (str tile)) (summon-areas-for-tile b tile)))
+    (fn [result tile] (assoc result (keyword (str tile)) (go (summon-areas-for-tile b tile))))
     {}
-    (get-numbered-tiles)
-    )
-  )
+    (get-numbered-tiles)))
+
+
+(defn replace-tile [board x y value]
+  (assoc board x (assoc (nth board x) y value)))
+
 
 (defn populate-board-with
   [area]
-    (reduce (fn [new-board [x y]]
-               (let [value (max (get-tile-value b [x y]) 1)]
-                 (assoc new-board x (assoc (nth new-board x) y value))))
-    b
-    area))
+  (reduce (fn [new-board [x y]]
+            (let [value (max (get-tile-value b [x y]) 1)]
+              (replace-tile new-board x y value)))
+          b
+          area))
 
 
 ; Some ASCII ESC color codes

@@ -1,6 +1,6 @@
 (ns nurikabe.core-test
-    (:require [nurikabe.core :refer :all :exclude  [:b]])
-    (:use midje.sweet))
+    (require [nurikabe.core :refer :all])
+    (use midje.sweet))
 
 (def test-board
    [[U U U U U U U U U U U]
@@ -38,6 +38,8 @@
          populated-board )
 
   (fact (get-numbered-tiles) => '([5 5]))
+
+  (fact (get-tile-value (replace-tile b 5 5 10) [5 5]) => 10)
 
 )
 
