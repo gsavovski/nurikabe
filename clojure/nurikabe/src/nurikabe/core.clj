@@ -1,6 +1,6 @@
 (ns nurikabe.core
   (:gen-class)
-  (require [clojure.core.async :as async :refer  [>! <! >!! <!! go]])
+  ; (require [clojure.core.async :as async :refer  [>! <! >!! <!! go]])
   (require [clojure.set :as s])
   )
 
@@ -83,9 +83,9 @@
 
 ; Current puzzle
 ; TODO: turn this into a global swappable atom
-; (def b puzzle-board)
+(def b puzzle-board)
 ; (def b puzzle-board-gm-walker-anderson)
-(def b puzzle-board-tester)
+; (def b puzzle-board-tester)
 
 (defn get-tile-value
   [board [x y]]
@@ -138,68 +138,9 @@
                    ; TODO: Create restricted board
                    ; To not allow tiles which border on area
                   ; (not (zero? (get-tile-value b [i j])))
+                   ; (= (get-tile-value b [i j]) -1)
                    ))
      all-tiles)))
-
-
-(defn expansions-for-area
-  "Given an area, returns all possible
-  expansions for it by one tile"
-  [area]
-    (set
-      (reduce
-         (fn [new-areas tile]
-           (s/union
-             new-areas
-             (set
-               (keep (fn [direction]
-                       (if-not (contains? area direction)
-                         (s/union area #{direction})))
-               (possible-directions-for-tile tile)))))
-      #{}
-      area)))
-
-
-(defn summon-areas-for-tile
-  ; Default value for areas is the tile itself
-  ([board tile] (summon-areas-for-tile board tile #{#{tile}}))
-  ([board tile areas]
-  (if (= (count (first areas)) (get-tile-value board tile))
-    (set areas)
-    (let [new-areas
-                 (reduce (fn [new-areas area] (s/union new-areas  (expansions-for-area area)))
-                 #{}
-                 areas)]
-     (summon-areas-for-tile board tile new-areas)))))
-
-
-(defn generate-all-possible-areas-for-board []
-  (reduce
-    (fn [result tile] (assoc result (keyword (str tile)) (go (summon-areas-for-tile b tile))))
-    {}
-    (get-numbered-tiles)))
-
-
-(defn replace-tile [board x y value]
-  (assoc board x (assoc (nth board x) y value)))
-
-
-(defn populate-board-with
-  [area]
-  (reduce (fn [new-board [x y]]
-            (let [value (max (get-tile-value b [x y]) 1)]
-              (replace-tile new-board x y value)))
-          b
-          area))
-
-
-(defn get-area-tiles-in-board [board]
-   (filter
-     (fn [tile] (pos? (get-tile-value board tile)))
-     (vec (for  [x  (range (board-row-count)),
-                 y  (range (board-column-count))]
-           [x y]))
-    ))
 
 (defn possible-directions-for-tile-in-board
   [[x y] board]
@@ -212,12 +153,43 @@
                    ; The tile is available
                    ; TODO: Create restricted board
                    ; To not allow tiles which border on area
-                  (not (zero? (get-tile-value board [i j])))
-                   ))
+                  (not (zero? (get-tile-value board [i j]))
+                  ; (= (get-tile-value b [i j]) -1)
+                  )))
      all-tiles)))
 
 
-(defn create-restricted-board [board]
+
+(defn expansions-for-area
+  "Given an area, returns all possible
+  expansions for it by one tile"
+  [area board]
+    (set
+      (reduce
+         (fn [new-areas tile]
+           (s/union
+             new-areas
+             (set
+               (keep (fn [direction]
+                       (if-not (contains? area direction)
+                         (s/union area #{direction})))
+               (possible-directions-for-tile-in-board tile board)))))
+      #{}
+      area)))
+
+
+(defn replace-tile [board x y value]
+  (assoc board x (assoc (nth board x) y value)))
+
+(defn get-area-tiles-in-board [board]
+   (filter
+     (fn [tile] (pos? (get-tile-value board tile)))
+     (vec (for  [x  (range (board-row-count)),
+                 y  (range (board-column-count))]
+           [x y]))
+    ))
+
+(defn create-restricted-board-for-tile [board tile]
   "Given a board with areas, surround all
    areas with '-1' restrictred tiles, because
   when discovering new areas we should not
@@ -229,7 +201,38 @@
               new-board
               (possible-directions-for-tile-in-board tile board)))
     board
-    (get-area-tiles-in-board board)))
+    (remove #{tile} (set (get-area-tiles-in-board board)))))
+
+
+(defn summon-areas-for-tile
+  ; Default value for areas is the tile itself
+  ([board tile] (summon-areas-for-tile board tile #{#{tile}}))
+  ([board tile areas]
+  (if (= (count (first areas)) (get-tile-value board tile))
+    (set areas)
+    (let [new-areas
+                 (reduce (fn [new-areas area] (s/union new-areas  (expansions-for-area area board)))
+                 #{}
+                 areas)]
+     (summon-areas-for-tile board tile new-areas)))))
+
+
+(defn generate-all-possible-areas-for-board []
+  (reduce
+    (fn [result tile] (assoc result (keyword (str tile)) (summon-areas-for-tile (create-restricted-board-for-tile b tile) tile)))
+    {}
+    (get-numbered-tiles)))
+
+
+(defn populate-board-with
+  [area]
+  (reduce (fn [new-board [x y]]
+            (let [value (max (get-tile-value b [x y]) 1)]
+              (replace-tile new-board x y value)))
+          b
+          area))
+
+
 
 
 ; http://stackoverflow.com/questions/18246549/cartesian-product-in-clojure
