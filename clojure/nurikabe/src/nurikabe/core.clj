@@ -153,9 +153,10 @@
                    ; The tile is available
                    ; TODO: Create restricted board
                    ; To not allow tiles which border on area
-                  (not (zero? (get-tile-value board [i j]))
+                   ; Allow to move only to 'free' 0 tiles
+                   (not (zero? (get-tile-value board [i j])))
                   ; (= (get-tile-value b [i j]) -1)
-                  )))
+                  ))
      all-tiles)))
 
 
