@@ -114,8 +114,8 @@
 (defn get-numbered-tiles []
    (filter
      (fn [tile] (pos? (get-tile-value b tile)))
-     (vec (for  [x  (range (board-column-count)),
-                 y  (range (board-row-count))]
+     (vec (for  [x  (range (board-row-count)),
+                 y  (range (board-column-count))]
            [x y]))
     ))
 
@@ -127,38 +127,23 @@
 
 
 (defn possible-directions-for-tile
-  [[x y]]
-  (let [all-tiles (all-directions-for-tile [x y])]
-    (remove (fn [[i j]]
-              (or (< i 0)
-                  (< j 0)
-                  (> i (- (board-row-count) 1))
-                  (> j (- (board-column-count) 1))
-                   ; The tile is available
-                   ; TODO: Create restricted board
-                   ; To not allow tiles which border on area
-                  ; (not (zero? (get-tile-value b [i j])))
-                   ; (= (get-tile-value b [i j]) -1)
-                   ))
-     all-tiles)))
-
-(defn possible-directions-for-tile-in-board
-  [[x y] board]
-  (let [all-tiles (all-directions-for-tile [x y])]
-    (remove (fn [[i j]]
-              (or (< i 0)
-                  (< j 0)
-                  (> i (- (board-row-count) 1))
-                  (> j (- (board-column-count) 1))
+  ([[x y]]
+   (possible-directions-for-tile [x y] board))
+  ([[x y] board]
+   (let [all-tiles (all-directions-for-tile [x y])]
+     (remove (fn [[i j]]
+               (or (< i 0)
+                   (< j 0)
+                   (> i (- (board-row-count) 1))
+                   (> j (- (board-column-count) 1))
                    ; The tile is available
                    ; TODO: Create restricted board
                    ; To not allow tiles which border on area
                    ; Allow to move only to 'free' 0 tiles
                    (not (zero? (get-tile-value board [i j])))
-                  ; (= (get-tile-value b [i j]) -1)
-                  ))
-     all-tiles)))
-
+                   ; (= (get-tile-value b [i j]) -1)
+                   ))
+             all-tiles))))
 
 
 (defn expansions-for-area
@@ -174,7 +159,7 @@
                (keep (fn [direction]
                        (if-not (contains? area direction)
                          (s/union area #{direction})))
-               (possible-directions-for-tile-in-board tile board)))))
+               (possible-directions-for-tile tile board)))))
       #{}
       area)))
 
@@ -200,7 +185,7 @@
       (reduce (fn [new-new-board [x y]]
                 (replace-tile new-new-board x y -1))
               new-board
-              (possible-directions-for-tile-in-board tile board)))
+              (possible-directions-for-tile tile board)))
     board
     (remove #{tile} (set (get-area-tiles-in-board board)))))
 
