@@ -128,7 +128,7 @@
 
 (defn possible-directions-for-tile
   ([[x y]]
-   (possible-directions-for-tile [x y] board))
+   (possible-directions-for-tile [x y] b))
   ([[x y] board]
    (let [all-tiles (all-directions-for-tile [x y])]
      (remove (fn [[i j]]
@@ -221,15 +221,6 @@
 
 
 
-; http://stackoverflow.com/questions/18246549/cartesian-product-in-clojure
-(defn cart [colls]
-  (if (empty? colls)
-    '(())
-    (for [x (first colls)
-           more (cart (rest colls))]
-      (cons x more))))
-
-
 ; Some ASCII ESC color codes
 ; reset color
 ;(print (str "\u001B[0m"))
@@ -244,35 +235,69 @@
 ;(print (str "\u001B[30m"))
 (defn print-board
   [board]
-      (do
-      (doall
-        ; TODO remove 0s from range
-        (for  [x  (range (board-row-count)),
-               y  (range (board-column-count))]
+  (do
+    (doall
+      ; TODO remove 0s from range
+      (for  [x  (range (board-row-count)),
+             y  (range (board-column-count))]
         (let [value (get-tile-value board [x y])]
-           (do
-             (if (= value 0)
-               (do
-                 ; green bckg
-                 (print "\u001b[46m")
-                 (print "  "))
-               (do
-                 ; white bckg
-                 (print "\u001B[47m")
-                 ; black font
-                 (print "\u001B[30m")
-                 ; Prepend white space on single digit values
-                 (if (< (count (str value)) 2)
-                   (print  "" value)
-                   (print  value))))
+          (do
+            (if (= value 0)
+              (do
+                ; green bckg
+                (print "\u001b[46m")
+                (print "  "))
+              (do
+                ; white bckg
+                (print "\u001B[47m")
+                ; black font
+                (print "\u001B[30m")
+                ; Prepend white space on single digit values
+                (if (< (count (str value)) 2)
+                  (print  "" value)
+                  (print  value))))
 
 
-             ; Set new line
-             (if (= y (- (board-column-count) 1)) (println  "\u001b[49m"))))))
-      ; Reset colors
-      (print (str "\u001B[0m"))
-      )
-)
+            ; Set new line
+            (if (= y (- (board-column-count) 1)) (println  "\u001b[49m"))))))
+    ; Reset colors
+    (print (str "\u001B[0m"))
+    ))
+
+
+(defn merge-areas-into-one
+  [areas]
+  (reduce
+    (fn[merged-area area] (s/union merged-area area))
+    #{}
+    areas))
+
+
+; http://stackoverflow.com/questions/18246549/cartesian-product-in-clojure
+(defn cart [colls]
+  (if (empty? colls)
+    '(())
+    (for [x (first colls)
+           more (cart (rest colls))]
+      (cons x more))))
+
+
+(defn generate-possible-solutions []
+  (let [all-areas (generate-all-possible-areas-for-board)
+        possible-solutions (cart (vals all-areas))]
+    possible-solutions
+    ))
+
+
+(defn print-all-possible-solutions []
+  (let [all-solutions (generate-possible-solutions)]
+    (vec (for [solution all-solutions]
+      (do
+        (println solution)
+        (println)
+        ; (debug-repl)
+        (print-board (populate-board-with (merge-areas-into-one (vec solution))))
+        (println))))))
 
 
 (defn print-all-areas
