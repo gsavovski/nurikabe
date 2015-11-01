@@ -12,6 +12,7 @@
 (def B 0)   ; path or road
 (def W 1)   ; area or garden space
 
+
 (def puzzle-board-gm-walker-anderson
    [[U U U U U U U U U U]
     [U U 4 U 11 U U U U U]
@@ -79,11 +80,40 @@
    [0 0 0 1 2]
    [2 1 0 0 0]])
 
+
+; 3 secs in ruby
+(def gm-prasanna
+  [[0 0 3 0 0 1 0 0 1 0]
+   [0 3 0 0 0 0 5 0 0 0]
+   [0 0 0 0 0 0 0 0 0 3]
+   [0 0 0 0 2 0 0 0 0 0]
+   [0 0 0 0 0 0 0 0 3 0]
+   [0 4 0 0 0 0 0 0 0 0]
+   [0 0 0 0 0 4 0 0 0 0]
+   [1 0 0 0 0 0 0 0 0 0]
+   [0 1 0 0 2 0 0 1 0 0]
+   [0 0 0 1 0 0 0 0 3 0]])
+
 ; Current puzzle
 ; TODO: turn this into a global swappable atom
 (def b puzzle-board)
 ; (def b puzzle-board-gm-walker-anderson)
 ; (def b puzzle-board-tester)
+; (def b gm-prasanna)
+
+; Final solution board
+(def sb (atom b))
+
+(defn update-solution-board
+  [[x y] value]
+  (swap! sb assoc-in  [x y] value))
+
+
+(def all-possible-areas (atom {}))
+
+(defn add-areas-to-all-possible-areas
+  [numbered-tile areas]
+  (swap! all-possible-areas assoc (keyword (str numbered-tile)) areas))
 
 (defn get-tile-value
   [board [x y]]
@@ -213,7 +243,11 @@
 
 (defn generate-all-possible-areas-for-board []
   (reduce
-    (fn [result tile] (assoc result (keyword (str tile)) (summon-areas-for-tile (create-restricted-board-for-tile b tile) tile)))
+    (fn [result tile]
+      (let [areas  (summon-areas-for-tile (create-restricted-board-for-tile b tile) tile)]
+      (do
+        (add-areas-to-all-possible-areas tile areas)
+        (assoc result (keyword (str tile)) areas))))
     {}
     (get-numbered-tiles)))
 
@@ -333,6 +367,7 @@
   (and
     (= (count (path-continuous? board)) (correct-path-size))
     (path-without-squares? board)))
+
 
 
 (defn generate-possible-solutions []
