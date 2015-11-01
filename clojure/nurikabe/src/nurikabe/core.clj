@@ -1,18 +1,16 @@
 (ns nurikabe.core
   (:gen-class)
   ; (require [clojure.core.async :as async :refer  [>! <! >!! <!! go]])
-  (require [clojure.set :as s])
-  )
+  (require [clojure.set :as s]))
 
 ;Debugger tool
 (use 'alex-and-georges.debug-repl)
+
 
 ; Tile definitions
 (def U nil) ; undefined
 (def B 0)   ; path or road
 (def W 1)   ; area or garden space
-
-
 
 (def puzzle-board-gm-walker-anderson
    [[U U U U U U U U U U]
@@ -112,18 +110,27 @@
 
 
 (defn get-numbered-tiles []
-   (filter
-     (fn [tile] (pos? (get-tile-value b tile)))
-     (vec (for  [x  (range (board-row-count)),
-                 y  (range (board-column-count))]
+  (filter
+    (fn [tile] (pos? (get-tile-value b tile)))
+    (vec (for  [x  (range (board-row-count)),
+                y  (range (board-column-count))]
            [x y]))
     ))
 
+(defn get-path-tiles-for-board
+  [board]
+  (set (filter
+         (fn [tile] (= (get-tile-value board tile) 0))
+         (vec (for  [x  (range (board-row-count)),
+                     y  (range (board-column-count))]
+                [x y]))
+         )))
+
 
 (defn all-directions-for-tile
- [[x y]]
- (let [tiles (map (fn[[dx dy]] [(+ x dx) (+ y dy)]) DIRECTIONS)]
-  tiles))
+  [[x y]]
+  (let [tiles (map (fn[[dx dy]] [(+ x dx) (+ y dy)]) DIRECTIONS)]
+    tiles))
 
 
 (defn possible-directions-for-tile
@@ -150,16 +157,16 @@
   "Given an area, returns all possible
   expansions for it by one tile"
   [area board]
-    (set
-      (reduce
-         (fn [new-areas tile]
-           (s/union
-             new-areas
-             (set
-               (keep (fn [direction]
-                       (if-not (contains? area direction)
-                         (s/union area #{direction})))
-               (possible-directions-for-tile tile board)))))
+  (set
+    (reduce
+      (fn [new-areas tile]
+        (s/union
+          new-areas
+          (set
+            (keep (fn [direction]
+                    (if-not (contains? area direction)
+                      (s/union area #{direction})))
+                  (possible-directions-for-tile tile board)))))
       #{}
       area)))
 
@@ -167,17 +174,18 @@
 (defn replace-tile [board x y value]
   (assoc board x (assoc (nth board x) y value)))
 
+
 (defn get-area-tiles-in-board [board]
-   (filter
-     (fn [tile] (pos? (get-tile-value board tile)))
-     (vec (for  [x  (range (board-row-count)),
-                 y  (range (board-column-count))]
-           [x y]))
-    ))
+  (filter
+    (fn [tile] (pos? (get-tile-value board tile)))
+    (vec (for  [x  (range (board-row-count)),
+                y  (range (board-column-count))]
+           [x y]))))
+
 
 (defn create-restricted-board-for-tile [board tile]
   "Given a board with areas, surround all
-   areas with '-1' restrictred tiles, because
+  areas with '-1' restrictred tiles, because
   when discovering new areas we should not
   colide with existing areas"
   (reduce
@@ -194,13 +202,13 @@
   ; Default value for areas is the tile itself
   ([board tile] (summon-areas-for-tile board tile #{#{tile}}))
   ([board tile areas]
-  (if (= (count (first areas)) (get-tile-value board tile))
-    (set areas)
-    (let [new-areas
-                 (reduce (fn [new-areas area] (s/union new-areas  (expansions-for-area area board)))
-                 #{}
-                 areas)]
-     (summon-areas-for-tile board tile new-areas)))))
+   (if (= (count (first areas)) (get-tile-value board tile))
+     (set areas)
+     (let [new-areas
+           (reduce (fn [new-areas area] (s/union new-areas  (expansions-for-area area board)))
+                   #{}
+                   areas)]
+       (summon-areas-for-tile board tile new-areas)))))
 
 
 (defn generate-all-possible-areas-for-board []
@@ -217,8 +225,6 @@
               (replace-tile new-board x y value)))
           b
           area))
-
-
 
 
 ; Some ASCII ESC color codes
@@ -261,8 +267,7 @@
             ; Set new line
             (if (= y (- (board-column-count) 1)) (println  "\u001b[49m"))))))
     ; Reset colors
-    (print (str "\u001B[0m"))
-    ))
+    (print (str "\u001B[0m"))))
 
 
 (defn merge-areas-into-one
@@ -278,42 +283,107 @@
   (if (empty? colls)
     '(())
     (for [x (first colls)
-           more (cart (rest colls))]
+          more (cart (rest colls))]
       (cons x more))))
 
 
+(defn correct-path-size []
+  (let [num-tiles (get-numbered-tiles)
+        num-tiles-values (map (fn [tile] (get-tile-value b tile)) (vec num-tiles))
+        num-tiles-sum (reduce + 0 num-tiles-values)
+        total-tiles-count (* (board-row-count) (board-column-count))]
+    (- total-tiles-count num-tiles-sum)))
+
+
+(defn path-continuous?
+  [board]
+  (let [path-tiles (get-path-tiles-for-board board)]
+    (reduce
+      (fn[path tile] (let [all-dirs (set (all-directions-for-tile tile))]
+                       (if (and (not= (s/intersection (s/difference path-tiles tile) all-dirs) #{})
+                                (not (contains? path tile))
+
+                                )
+                         (s/union path #{tile})
+                         path
+                         )))
+      #{}
+      path-tiles)))
+
+(defn path-without-squares?
+  [board]
+  (not-any?
+    (fn[[x y]]
+      (let [ square #{[x y]
+                      [x (+ y 1)]
+                      [(+ x 1) y]
+                      [(+ x 1) (+ y 1)]}]
+        (=
+         (s/intersection
+           (get-path-tiles-for-board board)
+           square)
+         square)))
+    (vec (for  [x  (range (- (board-row-count) 1)),
+                y  (range (- (board-column-count) 1))]
+           [x y]))))
+
+
+(defn path-valid?
+  [board]
+  (and
+    (= (count (path-continuous? board)) (correct-path-size))
+    (path-without-squares? board)))
+
+
 (defn generate-possible-solutions []
-  (let [all-areas (generate-all-possible-areas-for-board)
-        possible-solutions (cart (vals all-areas))]
-    possible-solutions
-    ))
+  (set
+    (let [all-areas (generate-all-possible-areas-for-board)
+          possible-solutions (cart (vals all-areas))]
+      possible-solutions)))
+
+
+(defn solutions-with-correct-path
+  [solutions]
+  (keep
+    (fn [solution] (path-valid? (populate-board-with (merge-areas-into-one (vec solution)))))
+    solutions))
+
+
+(defn print-correct-solutions []
+  (let [all-solutions (generate-possible-solutions)]
+    (vec (for [solution all-solutions]
+           (let [solution-board (populate-board-with (merge-areas-into-one (vec solution)))]
+             (if (path-valid? solution-board)
+               (do
+                 (println solution)
+                 (println)
+                 (print-board solution-board)
+                 (println))))))))
+
 
 
 (defn print-all-possible-solutions []
   (let [all-solutions (generate-possible-solutions)]
     (vec (for [solution all-solutions]
-      (do
-        (println solution)
-        (println)
-        ; (debug-repl)
-        (print-board (populate-board-with (merge-areas-into-one (vec solution))))
-        (println))))))
+           (do
+             (println solution)
+             (println)
+             (print-board (populate-board-with (merge-areas-into-one (vec solution))))
+             (println))))))
+
 
 
 (defn print-all-areas
   []
   (let [all-areas (generate-all-possible-areas-for-board)]
-   (doseq  [[num-tile areas] all-areas]
-     (doall
-       (for [area areas]
-         (do
-         (println "Tile: " (name num-tile)  " Area: " area)
-         (print-board (populate-board-with area))
-         (println)
-        ))
-     )
-   )
-  ))
+    (doseq  [[num-tile areas] all-areas]
+      (doall
+        (for [area areas]
+          (do
+            (println "Tile: " (name num-tile)  " Area: " area)
+            (print-board (populate-board-with area))
+            (println)
+            ))))))
 
 
 ; For Fancy in place bash printing
@@ -330,8 +400,9 @@
   "The beggining of a Nurikabe Solver"
   [& args]
   (do
-  (println "Hello, Nurikabe!")
-  (println "These are all areas for tile [0 0]")))
+    (println "Hello, Nurikabe!")
+    (print-correct-solutions)
+    ))
 
 
 
