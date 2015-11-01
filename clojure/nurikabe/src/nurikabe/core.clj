@@ -262,16 +262,28 @@
       (cons x more))))
 
 
+(defn cart-sets [colls]
+  (if (empty? colls)
+    #{#{}}
+    (for [x (first colls)
+          more (cart-sets (rest colls))]
+      (set (cons x more)))))
+
+
+; TODO: Try to make this return a set as top level type instead of
+; ((APersistentMap$ValSeq))
 (defn group-areas-by-combinations-of-n
   [n]
   (let [groups (c/combinations (get-numbered-tiles) n)]
     (reduce
       (fn [groupings group]
         (assoc groupings group
-               (cart
-                 #{
-                   ((keyword  (str (first (vec group))))  (deref all-possible-areas))
-                   ((keyword  (str (second (vec group))))  (deref all-possible-areas))})))
+               (cart-sets
+                 (reduce
+                   (fn [result num-tile]
+                     (conj result ((keyword (str (vec num-tile))) (deref all-possible-areas))))
+                   #{}
+                   group))))
       {}
       groups)))
 
@@ -380,8 +392,13 @@
 (defn path-valid?
   [board]
   (and
-    (= (count (path-continuous? board)) (correct-path-size))
-    (path-without-squares? board)))
+    ; Check count only when all areas are populated, not for partial groupings
+    ; (= (count (path-continuous? board)) (correct-path-size))
+    (= (count (path-continuous? board)) (count (get-path-tiles-for-board board)))
+    ; (path-without-squares? board)
+    true
+
+    ))
 
 
 
@@ -392,11 +409,34 @@
       possible-solutions)))
 
 
+(defn verify-grouped-solutions []
+  (generate-all-possible-areas-for-board)
+  (let [groups-of2 (group-areas-by-combinations-of-n 2)]
+    (doall
+      (for [group groups-of2]
+        (let [group-tiles (first group)
+              group-areas (second group)]
+
+          (for [group-area group-areas]
+            (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
+                  path-valid (path-valid? board-for-area)]
+              (if path-valid
+                (do
+                  (println)
+                  (println "group: " group-tiles)
+                  (println "path-cont: " path-valid)
+                  (println)
+                  (print-board board-for-area)))
+
+                )))))))
+
+
 (defn solutions-with-correct-path
   [solutions]
   (keep
     (fn [solution] (path-valid? (populate-board-with (merge-areas-into-one (vec solution)))))
     solutions))
+
 
 
 (defn print-correct-solutions []
