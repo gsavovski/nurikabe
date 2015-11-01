@@ -1,7 +1,8 @@
 (ns nurikabe.core
   (:gen-class)
   ; (require [clojure.core.async :as async :refer  [>! <! >!! <!! go]])
-  (require [clojure.set :as s]))
+  (require [clojure.set :as s]
+           [clojure.math.combinatorics :as c]))
 
 ;Debugger tool
 (use 'alex-and-georges.debug-repl)
@@ -252,6 +253,29 @@
     (get-numbered-tiles)))
 
 
+; http://stackoverflow.com/questions/18246549/cartesian-product-in-clojure
+(defn cart [colls]
+  (if (empty? colls)
+    '(())
+    (for [x (first colls)
+          more (cart (rest colls))]
+      (cons x more))))
+
+
+(defn group-areas-by-combinations-of-n
+  [n]
+  (let [groups (c/combinations (get-numbered-tiles) n)]
+    (reduce
+      (fn [groupings group]
+        (assoc groupings group
+               (cart
+                 #{
+                   ((keyword  (str (first (vec group))))  (deref all-possible-areas))
+                   ((keyword  (str (second (vec group))))  (deref all-possible-areas))})))
+      {}
+      groups)))
+
+
 (defn populate-board-with
   [area]
   (reduce (fn [new-board [x y]]
@@ -310,15 +334,6 @@
     (fn[merged-area area] (s/union merged-area area))
     #{}
     areas))
-
-
-; http://stackoverflow.com/questions/18246549/cartesian-product-in-clojure
-(defn cart [colls]
-  (if (empty? colls)
-    '(())
-    (for [x (first colls)
-          more (cart (rest colls))]
-      (cons x more))))
 
 
 (defn correct-path-size []
