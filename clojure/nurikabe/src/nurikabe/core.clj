@@ -299,6 +299,10 @@
           area))
 
 
+(defn get-tile-print-value
+  [board [x y]]
+   (nth (nth board x) y))
+
 ; Some ASCII ESC color codes
 ; reset color
 ;(print (str "\u001B[0m"))
@@ -317,7 +321,7 @@
       ; TODO remove 0s from range
       (doseq  [x  (range (board-row-count)),
                y  (range (board-column-count))]
-        (let [value (get-tile-value board [x y])]
+        (let [value (get-tile-print-value board [x y])]
           (do
             ; (println x y)
             (cond
@@ -325,7 +329,7 @@
                             ; green bckg
                             (print "\u001b[46m")
                             (print "  "))
-              (= value -1) (do
+              (= value nil) (do
                              ; ? bckg
                              (print "\u001b[41m")
                              (print "  ")
@@ -437,7 +441,8 @@
 
 (defn traverse-area
   [starting-tile board]
-
+  (if (= 1 (get-tile-value b starting-tile))
+    #{starting-tile}
   (loop [current-tile starting-tile
          current-area #{}]
     (if (= current-tile nil)
@@ -456,7 +461,7 @@
             (do
               ; (println "area-dirs " new-area-dirs)
               ; (println "new-area " new-area)
-            (recur (first new-area-dirs) new-area))))))))
+            (recur (first new-area-dirs) new-area)))))))))
 
 
 (defn get-area-size-for-starting-tile
@@ -481,9 +486,13 @@
   [numbered-tile]
   (let [solution-board (deref sb)
         area-for-tile (traverse-area numbered-tile solution-board)]
-    (for [tile area-for-tile]
-      (let [dirs (possible-directions-for-tile tile solution-board)]
-        (update-solution-board tile 0)))))
+    (doseq [tile area-for-tile]
+      (let [dirs (possible-directions-for-tile tile solution-board) ]
+      (do
+      (println tile)
+      (println dirs)
+        (doseq [d dirs]
+        (update-solution-board d 0)))))))
 
 
 (defn wrap-finished-areas-with-path
@@ -500,13 +509,14 @@
 
 (defn clean-up-all-posible-areas-for-tile
   [num-tile]
-
-  (let [current-areas-for-tile ((keyword (str (vec num-tile))) (deref all-possible-areas))
+    (let [current-areas-for-tile ((keyword (str (vec num-tile))) (deref all-possible-areas))
         solution-board (deref sb)
         area-size (get-area-size-for-starting-tile num-tile solution-board)
         area-for-tile (traverse-area num-tile solution-board)]
+
     (if (= area-size (get-tile-value solution-board num-tile))
       (add-areas-to-all-possible-areas num-tile area-for-tile))))
+
 
 
 (defn stack-areas-to-discover-steady-tiles
@@ -516,13 +526,11 @@
         stacked-without-numbered-tiles (s/difference stacked (set (get-numbered-tiles)))
         numbered-tiles (s/intersection stacked (set (get-numbered-tiles)))]
     (do
-      ; (if (and (contains? stacked [0 0]) (contains? stacked [0 2]))
-      ;     (debug-repl))
     (doall
       (for [tile stacked-without-numbered-tiles]
         (do
         (update-solution-board tile 1)
-        (clean-up-all-posible-areas-for-tile tile)
+        ; (clean-up-all-posible-areas-for-tile (first numbered-tiles))
         ))))))
 
 
