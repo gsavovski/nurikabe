@@ -84,22 +84,22 @@
 
 ; 3 secs in ruby
 (def gm-prasanna
-  [[0 0 3 0 0 1 0 0 1 0]
-   [0 3 0 0 0 0 5 0 0 0]
-   [0 0 0 0 0 0 0 0 0 3]
-   [0 0 0 0 2 0 0 0 0 0]
-   [0 0 0 0 0 0 0 0 3 0]
-   [0 4 0 0 0 0 0 0 0 0]
-   [0 0 0 0 0 4 0 0 0 0]
-   [1 0 0 0 0 0 0 0 0 0]
-   [0 1 0 0 2 0 0 1 0 0]
-   [0 0 0 1 0 0 0 0 3 0]])
+  [[U U 3 U U 1 U U 1 U]
+   [U 3 U U U U 5 U U U]
+   [U U U U U U U U U 3]
+   [U U U U 2 U U U U U]
+   [U U U U U U U U 3 U]
+   [U 4 U U U U U U U U]
+   [U U U U U 4 U U U U]
+   [1 U U U U U U U U U]
+   [U 1 U U 2 U U 1 U U]
+   [U U U 1 U U U U 3 U]])
 
 ; Current puzzle
 ; TODO: turn this into a global swappable atom
-(def b puzzle-board)
+; (def b puzzle-board)
 ; (def b puzzle-board-gm-walker-anderson)
-; (def b puzzle-board-tester)
+(def b puzzle-board-tester)
 ; (def b gm-prasanna)
 
 ; Final solution board
@@ -499,7 +499,7 @@
   []
   (let [num-tiles (get-numbered-tiles)
         solution-board (deref sb)]
-    (for [num-tile num-tiles]
+    (doseq [num-tile num-tiles]
       (let [area-size (get-area-size-for-starting-tile num-tile solution-board)
             area-for-tile (traverse-area num-tile solution-board)]
         (if (= area-size (get-tile-value solution-board num-tile))
@@ -534,43 +534,97 @@
         ))))))
 
 
+  ; def create_general_area_span_for_numbered size
+  ;   area_span = []
+  ;   row_zero = [[0,0]]
+  ;   n = size + (size - 1)
+  ;   m = ::Matrix.build(n,n){|x,y| [x,y]} #.to_a.flatten(1).to_set
+  ;   (1...size).each do |i|
+  ;     row_zero << [0,i]
+  ;     row_zero << [0,-i]
+  ;   end
+  ;   row_zero.sort.each do |y,x|
+  ;     # Bellow is the trick for the diagonal
+  ;     # on the diamond
+  ;     (0..(x.abs-size+1).abs).each do |i|
+  ;       area_span << [y+i,x]
+  ;       area_span << [y-i,x]
+  ;     end
+  ;   end
+
+  ;   area_span.uniq
+  ; end
+(defn abs  [n]  (max n  (- n)))
+
+(defn general-diamond-for-size
+  ; "     x
+  ;     x x x
+  ;   x x 3 x x
+  ;     x x x
+  ;       x
+  ; "
+  [n]
+  (let [zero-row-range (range (- 1 n) n)
+        zero-row (reduce (fn [row y] (s/union row #{[0 y]})) #{} zero-row-range)]
+
+    (map (fn [[x y]] [(+ x n)(+ y n)])
+         (reduce
+
+           (fn [diamond [x y]]
+             (reduce
+               (fn [diamond [x y]] (s/union diamond  (s/union diamond #{[(+ x y) 0]}) #{[(-  (+ x y)) 0]}))
+               diamond
+               (range (abs  (+ (- (abs x) n) 0) ))))
+
+           zero-row
+           zero-row)
+         )))
+
+
+
+; (defn are-areas-inter-reachable?
+;   [num-tile1 num-tile2]
+
+
+; )
+
 (defn verify-grouped-solutions []
-  (generate-all-possible-areas-for-board)
-  (doall
-    ; (for [n (range (+ (count (get-numbered-tiles)) 1))]
-    (for [n (range  3)]
-      (let [groups-of-n (group-areas-by-combinations-of-n n)]
-        (doall
-          (for [group groups-of-n]
-            (let [group-tiles (first group)
-                  group-areas (second group)
-                  stacked (stack-areas-to-discover-steady-tiles group-areas)
+  ; (do
+    (generate-all-possible-areas-for-board)
+    (wrap-finished-areas-with-path)
+    (do ;all
+        (doseq [n (range (+ (count (get-numbered-tiles)) 1))]
+          ; (for [n (range  1)]
+          (let [groups-of-n (group-areas-by-combinations-of-n n)]
+            (do
+              (wrap-finished-areas-with-path)
+              (doseq [group groups-of-n]
+                (let [group-tiles (first group)
+                      group-areas (second group)
+                      stacked (stack-areas-to-discover-steady-tiles group-areas)]
+                  (doseq [group-area group-areas]
+                    (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
+                          path-valid (path-continuous? board-for-area)
+                          no-coliding-areas (no-coliding-areas? board-for-area)
+                          ]
+                      (if (and path-valid no-coliding-areas)
+                        (do
 
-                  ]
-              (for [group-area group-areas]
-                (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
-                      path-valid (path-continuous? board-for-area)
-                      no-coliding-areas (no-coliding-areas? board-for-area)
-                     ]
-                  (if (and path-valid no-coliding-areas)
-                    (do
-
-                      (println)
-                      (println " N: " n)
-                      (println "group: " group-tiles)
-                      (println "path-cont: " path-valid)
-                      ; (println "group areas" group-areas)
-                      (println "stacked " stacked)
-                      (println)
-                      (print-board board-for-area)
-                      (println)
-                      ; (println "Restricted board for SB")
-                      ; (print-board (create-restricted-board-for-tile (deref sb) [0 0]))
-                      (println "SOLUTION BOARD")
-                      (print-board (deref sb))
-                      ))
-
-                  )))))))))
+                          (println)
+                          (println " N: " n)
+                          (println "group: " group-tiles)
+                          (println "path-cont: " path-valid)
+                          ; (println "group areas" group-areas)
+                          (println "stacked " stacked)
+                          (println)
+                          (print-board board-for-area)
+                          (println)
+                          ; (println "Restricted board for SB")
+                          ; (print-board (create-restricted-board-for-tile (deref sb) [0 0]))
+                          (println "SOLUTION BOARD")
+                          (print-board (deref sb))
+                          )))))))))))
+; )
 
 
 (defn solutions-with-correct-path
