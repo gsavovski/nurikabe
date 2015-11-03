@@ -571,14 +571,24 @@
          (reduce
 
            (fn [diamond [x y]]
-             (reduce
-               (fn [diamond [x y]] (s/union diamond  (s/union diamond #{[(+ x y) 0]}) #{[(-  (+ x y)) 0]}))
-               diamond
-               (range (abs  (+ (- (abs x) n) 0) ))))
+
+             (s/union diamond
+
+                      (reduce
+                        (fn [new-diamond i]
+                            (s/union new-diamond
+                                     ; (s/union new-diamond #{[(+ x y) i]})
+                                     #{[(+ (+ x y)) i]}  ;[(+ x y) i]}
+                                     ))
+                        diamond
+                        (range   (abs  (+ (- (abs y) n) 0) ))
+
+                        )
+
+                      ))
 
            zero-row
-           zero-row)
-         )))
+           zero-row))))
 
 
 
