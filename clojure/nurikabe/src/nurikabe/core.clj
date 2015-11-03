@@ -97,9 +97,9 @@
 
 ; Current puzzle
 ; TODO: turn this into a global swappable atom
-; (def b puzzle-board)
+(def b puzzle-board)
 ; (def b puzzle-board-gm-walker-anderson)
-(def b puzzle-board-tester)
+; (def b puzzle-board-tester)
 ; (def b gm-prasanna)
 
 ; Final solution board
@@ -534,26 +534,6 @@
         ))))))
 
 
-  ; def create_general_area_span_for_numbered size
-  ;   area_span = []
-  ;   row_zero = [[0,0]]
-  ;   n = size + (size - 1)
-  ;   m = ::Matrix.build(n,n){|x,y| [x,y]} #.to_a.flatten(1).to_set
-  ;   (1...size).each do |i|
-  ;     row_zero << [0,i]
-  ;     row_zero << [0,-i]
-  ;   end
-  ;   row_zero.sort.each do |y,x|
-  ;     # Bellow is the trick for the diagonal
-  ;     # on the diamond
-  ;     (0..(x.abs-size+1).abs).each do |i|
-  ;       area_span << [y+i,x]
-  ;       area_span << [y-i,x]
-  ;     end
-  ;   end
-
-  ;   area_span.uniq
-  ; end
 (defn abs  [n]  (max n  (- n)))
 
 (defn general-diamond-for-size
@@ -564,32 +544,23 @@
   ;       x
   ; "
   [n]
-  (let [zero-row-range (range (- 1 n) n)
-        zero-row (reduce (fn [row y] (s/union row #{[0 y]})) #{} zero-row-range)]
+  (do
+    (debug-repl)
+    (let [zero-row-range (range (- 1 n) n)
+          zero-row (reduce (fn [row y] (s/union row #{[0 y]})) #{} zero-row-range)]
 
-    (map (fn [[x y]] [(+ x n)(+ y n)])
-         (reduce
-
-           (fn [diamond [x y]]
-
-             (s/union diamond
-
-                      (reduce
-                        (fn [new-diamond i]
+      (map (fn [[x y]] [(+ x n)(+ y n)])
+           (reduce
+             (fn [diamond [x y]]
+               (s/union (reduce
+                          (fn [new-diamond i]
                             (s/union new-diamond
-                                     ; (s/union new-diamond #{[(+ x y) i]})
-                                     #{[(+ (+ x y)) i]}  ;[(+ x y) i]}
-                                     ))
-                        diamond
-                        (range   (abs  (+ (- (abs y) n) 0) ))
-
-                        )
-
-                      ))
-
-           zero-row
-           zero-row))))
-
+                                     #{[(+ x i) y] [(- x i) y]}))
+                          #{}
+                          (range  1 (abs (- (abs y) n))))
+                        diamond))
+             zero-row
+             zero-row)))))
 
 
 ; (defn are-areas-inter-reachable?
