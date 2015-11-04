@@ -96,10 +96,10 @@
 
 ; Current puzzle
 ; TODO: turn this into a global swappable atom
-(def b puzzle-board)
+; (def b puzzle-board)
 ; (def b puzzle-board-gm-walker-anderson)
 ; (def b puzzle-board-tester)
-; (def b gm-prasanna)
+(def b gm-prasanna)
 
 ; Final solution board
 (def sb (atom b))
@@ -274,6 +274,7 @@
 ; TODO: Try to make this return a set as top level type instead of
 ; ((APersistentMap$ValSeq))
 (defn group-areas-by-combinations-of-n
+  "DEPRECATED"
   [n]
   (let [groups (c/combinations (get-numbered-tiles) n)]
     (reduce
@@ -611,6 +612,14 @@
 
     (= (s/intersection group-tiles groups-unioned) group-tiles)))
 
+(defn cartesian-for-group
+  [group]
+  (cart-sets
+    (reduce
+      (fn [result num-tile]
+        (conj result ((keyword (str (vec num-tile))) (deref all-possible-areas))))
+      #{}
+      group)))
 
 (defn verify-grouped-solutions []
   ; (do
@@ -619,12 +628,13 @@
     (do ;all
         (doseq [n (range (+ (count (get-numbered-tiles)) 1))]
           ; (for [n (range  1)]
-          (let [groups-of-n (group-areas-by-combinations-of-n n)]
+          (let [groups-of-n (map #(set %1) (c/combinations (get-numbered-tiles) n))]
             (do
               (wrap-finished-areas-with-path)
               (doseq [group groups-of-n]
-                (let [group-tiles (first group)
-                      group-areas (second group)
+                (if (inter-reachable-group? group)
+                (let [group-tiles group
+                      group-areas (cartesian-for-group group)
                       stacked (stack-areas-to-discover-steady-tiles group-areas)]
                   (doseq [group-area group-areas]
                     (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
@@ -647,7 +657,7 @@
                           ; (print-board (create-restricted-board-for-tile (deref sb) [0 0]))
                           (println "SOLUTION BOARD")
                           (print-board (deref sb))
-                          )))))))))))
+                          ))))))))))))
 ; )
 
 
