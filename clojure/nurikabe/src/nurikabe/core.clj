@@ -13,7 +13,6 @@
 (def B 0)   ; path or road
 (def W 1)   ; area or garden space
 
-
 (def puzzle-board-gm-walker-anderson
    [[U U U U U U U U U U]
     [U U 4 U 11 U U U U U]
@@ -534,40 +533,84 @@
         ))))))
 
 
-(defn abs  [n]  (max n  (- n)))
+(defn abs [n] (max n (- n)))
 
-(defn general-diamond-for-size
-  ; "     x
-  ;     x x x
-  ;   x x 3 x x
-  ;     x x x
-  ;       x
-  ; "
-  [n]
-  (do
-    (debug-repl)
-    (let [zero-row-range (range (- 1 n) n)
-          zero-row (reduce (fn [row y] (s/union row #{[0 y]})) #{} zero-row-range)]
+(defn span-area-size-n-for-tile
+  "     x
+      x x x
+    x x 3 x x
+      x x x
+        x
+  "
+  [n [xx yy]]
+  (let [zero-row-range (range (- 1 n) n)
+        zero-row (reduce (fn [row y] (s/union row #{[0 y]})) #{} zero-row-range)]
+    (set (map (fn [[x y]] [(+ x xx)(+ y yy)])
+         (reduce
+           (fn [diamond [x y]]
+             (s/union (reduce
+                        (fn [new-diamond i]
+                          (s/union new-diamond
+                                   #{[(+ x i) y] [(- x i) y]}))
+                        #{}
+                        (range  1 (abs (- (abs y) n))))
+                      diamond))
+           zero-row
+           zero-row)))))
 
-      (map (fn [[x y]] [(+ x n)(+ y n)])
-           (reduce
-             (fn [diamond [x y]]
-               (s/union (reduce
-                          (fn [new-diamond i]
-                            (s/union new-diamond
-                                     #{[(+ x i) y] [(- x i) y]}))
-                          #{}
-                          (range  1 (abs (- (abs y) n))))
-                        diamond))
-             zero-row
-             zero-row)))))
-
-
-; (defn are-areas-inter-reachable?
-;   [num-tile1 num-tile2]
+(defn span-area-within-board
+  [area]
+  (set
+    (filter (fn [[x y]] (and (>= x 0) (>= y 0)))  area)))
 
 
-; )
+(defn board-with-only-2-numbered-tiles
+  [num-tile1 num-tile2]
+  (let [empty-board
+        (vec (repeat (board-row-count) (vec (replicate (board-column-count) 0))))
+        val1 (get-tile-value b num-tile1)
+        val2 (get-tile-value b num-tile2)
+        b-tile1 (assoc-in empty-board num-tile1 val1)
+        b-tile1-tile2 (assoc-in empty-board num-tile2 val2)]
+    b-tile1-tile2))
+
+
+(defn are-areas-inter-reachable?
+  [num-tile1 num-tile2]
+  (let [val1 (get-tile-value b num-tile1)
+        val2 (get-tile-value b num-tile2)]
+    (not (empty?
+           (s/intersection                                    ;+1 to include touching areas
+           (span-area-within-board (span-area-size-n-for-tile (+ 1 val1) num-tile1))
+           (span-area-within-board (span-area-size-n-for-tile val2 num-tile2)))))))
+
+
+(defn inter-reachable-groups-of-2
+  []
+  (let [all-groups-of-2 (c/combinations (get-numbered-tiles) 2)]
+    (set
+      (map #(set %1)
+           (filter (fn [[num-tile1 num-tile2]]
+                     (are-areas-inter-reachable? num-tile1 num-tile2))
+                   all-groups-of-2)))))
+
+
+(defn inter-reachable-group?
+  "For each pair in pairs of interreachable areas
+   calculate pair intersect group-tiles == pair,
+   then union all pairs that satisfied above,
+  finaly veirify if the union == group-tiles"
+  [group-tiles]
+  (let [groups-of-2 (inter-reachable-groups-of-2)
+        groups-unioned (reduce
+                         (fn [result pair-tiles] (if (= (s/intersection pair-tiles group-tiles) pair-tiles)
+                                                   (s/union result pair-tiles)
+                                                   (s/union result #{})))
+                         #{}
+                         groups-of-2)]
+
+    (= (s/intersection group-tiles groups-unioned) group-tiles)))
+
 
 (defn verify-grouped-solutions []
   ; (do
