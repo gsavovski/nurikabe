@@ -96,10 +96,10 @@
 
 ; Current puzzle
 ; TODO: turn this into a global swappable atom
-(def b puzzle-board)
+; (def b puzzle-board)
 ; (def b puzzle-board-gm-walker-anderson)
 ; (def b puzzle-board-tester)
-; (def b gm-prasanna)
+(def b gm-prasanna)
 
 ; Final solution board
 (def sb (atom b))
@@ -114,6 +114,13 @@
 (defn add-areas-to-all-possible-areas
   [numbered-tile areas]
   (swap! all-possible-areas assoc (keyword (str numbered-tile)) areas))
+
+
+(def all-groupings (atom {}))
+
+
+(defn add-areas-to-all-groupings [tiles areas]
+  (swap! all-groupings assoc (keyword (str tiles)) areas))
 
 
 (defn get-tile-value
@@ -143,6 +150,14 @@
 (defn get-numbered-tiles []
   (filter
     (fn [tile] (pos? (get-tile-value b tile)))
+    (vec (for  [x  (range (board-row-count)),
+                y  (range (board-column-count))]
+           [x y]))
+    ))
+
+(defn get-numbered-tiles-greater-then-1 []
+  (filter
+    (fn [tile] (> (get-tile-value b tile) 1))
     (vec (for  [x  (range (board-row-count)),
                 y  (range (board-column-count))]
            [x y]))
@@ -295,7 +310,7 @@
   (reduce (fn [new-board [x y]]
             (let [value (max (get-tile-value b [x y]) 1)]
               (replace-tile new-board x y value)))
-          b
+          @sb
           area))
 
 
@@ -366,20 +381,48 @@
     (- total-tiles-count num-tiles-sum)))
 
 
-(defn traverse-path
-  [board]
-  (let [path-tiles (get-path-tiles-for-board board)]
-    (reduce
-      (fn[path tile] (let [all-dirs (set (all-directions-for-tile tile))]
-                       (if (and (not= (s/intersection (s/difference path-tiles tile) all-dirs) #{})
-                                (not (contains? path tile))
+; (defn traverse-path
+;   ([board]
+;    (let [path-tiles (get-path-tiles-for-board board)
+;          starting-tile (first path-tiles)]
+;      (traverse-path starting-tile, #{}, board)))
 
-                                )
-                         (s/union path #{tile})
-                         path
-                         )))
-      #{}
-      path-tiles)))
+;   ([current-tile, path, board]
+;    (let [path-tiles (get-path-tiles-for-board board)
+;          all-dirs (set (all-directions-for-tile current-tile))
+;          new-path (s/union path #{current-tile})
+;          possible-dirs (s/difference (s/intersection all-dirs path-tiles) new-path)]
+;      (do
+;        (doseq [next-tile possible-dirs]
+;          (try
+;            (do
+;              (println "calling traverse with next-tile " next-tile " path count "  (count new-path)  " possible dirs " possible-dirs)
+;          (traverse-path next-tile new-path board))
+;          (catch Exception e (debug-repl))))
+;        new-path
+;        ; (debug-repl)
+;        )
+;      )))
+
+
+(defn traverse-path
+  ([board]
+   (let [path-tiles (get-path-tiles-for-board board)
+         starting-tile (first path-tiles)]
+     (traverse-path #{starting-tile} , #{}, board)))
+
+  ([next-tiles, path, board]
+   (let [path-tiles (get-path-tiles-for-board board)
+         current-tile (first next-tiles)
+         next-tiles (disj next-tiles current-tile)
+         all-dirs (set (all-directions-for-tile current-tile))
+         new-path (s/union path #{current-tile})
+         possible-dirs (s/difference (s/intersection all-dirs path-tiles) new-path next-tiles)
+         next-tiles (s/union next-tiles possible-dirs)]
+     (if (empty? next-tiles)
+       new-path
+       (traverse-path next-tiles new-path board)))))
+
 
 (defn path-without-squares?
   [board]
@@ -428,14 +471,7 @@
                    (< j 0)
                    (> i (- (board-row-count) 1))
                    (> j (- (board-column-count) 1))
-                   ; The tile is available
-                   ; TODO: Create restricted board
-                   ; To not allow tiles which border on area
-                   ; Allow to move only to 'free' 0 tiles
-                   ; (> (get-tile-value board [i j]) 0)
-                   (zero? (get-tile-value board [i j]))
-                   ; (= (get-tile-value b [i j]) -1)
-                   ))
+                   (zero? (get-tile-value board [i j]))))
              all-tiles))))
 
 
@@ -443,25 +479,18 @@
   [starting-tile board]
   (if (= 1 (get-tile-value b starting-tile))
     #{starting-tile}
-  (loop [current-tile starting-tile
-         current-area #{}]
-    (if (= current-tile nil)
-      current-area
-      (do
-        (let [all-dirs (set (possible-directions-within-area current-tile board))
-              area-dirs (set (filter (fn[tile] (> (get-tile-value board tile) 0)) all-dirs))
-              new-area-dirs (s/difference area-dirs current-area)
-              new-area (s/union new-area-dirs current-area)]
-          (if (= new-area-dirs #{})
-            (do
-              ; (println "area-dirs " new-area-dirs)
-              ; (println "new-area " new-area)
-            ; (debug-repl)
-            (recur nil new-area))
-            (do
-              ; (println "area-dirs " new-area-dirs)
-              ; (println "new-area " new-area)
-            (recur (first new-area-dirs) new-area)))))))))
+    (loop [current-tile starting-tile
+           current-area #{}]
+      (if (= current-tile nil)
+        current-area
+        (do
+          (let [all-dirs (set (possible-directions-within-area current-tile board))
+                area-dirs (set (filter (fn[tile] (> (get-tile-value board tile) 0)) all-dirs))
+                new-area-dirs (s/difference area-dirs current-area)
+                new-area (s/union new-area-dirs current-area)]
+            (if (= new-area-dirs #{})
+              (recur nil new-area)
+              (recur (first new-area-dirs) new-area))))))))
 
 
 (defn get-area-size-for-starting-tile
@@ -484,11 +513,8 @@
         area-for-tile (traverse-area numbered-tile solution-board)]
     (doseq [tile area-for-tile]
       (let [dirs (possible-directions-for-tile tile solution-board) ]
-      (do
-      (println tile)
-      (println dirs)
         (doseq [d dirs]
-        (update-solution-board d 0)))))))
+        (update-solution-board d 0))))))
 
 
 (defn get-numbered-tiles-for-completed-areas
@@ -539,13 +565,8 @@
     (doall
       (for [tile stacked-without-numbered-tiles]
         (do
-           ; (try
-             (update-solution-board tile 1)
-             ; (catch Exception e)
-
-             ; (finally (debug-repl)))
-        (clean-up-all-posible-areas)
-        )))))
+          (update-solution-board tile 1)
+          (clean-up-all-posible-areas))))))
 
 
 (defn abs [n] (max n (- n)))
@@ -626,60 +647,97 @@
 
     (= (s/intersection group-tiles groups-unioned) group-tiles)))
 
+
+"Stolen from a gist, but starred it to give credit"
+(defn flatten-sets
+  "Like flatten, but pulls elements out of sets instead of sequences."
+  [v]
+  (filter  (complement set?)
+          (rest (tree-seq set? seq (set v)))))
+
+
+(defn flatten-sets-one-level  [coll]
+  "Flattens set of sets to one level of sets (e.g)
+  from: #{#{[3 4]  [2 4]} #{#{[6 6] [6 5] [5 7] [5 6]} #{[8 4]  [7 4]}}}
+  to:  #{#{[3 4] [2 4]} #{[6 6] [6 5] [5 7] [5 6]} #{[8 4] [7 4]}}"
+  (reduce  (fn [r c] (if  (set? (first c)) (s/union r c) (s/union r #{ c})))
+          #{}
+          coll))
+
+
+(defn cartesian-for-group-more-then-2 [group]
+  (let [n (count group)
+        all-paired-group-keys (set (keys @all-groupings))
+        all-partial-groups (set (c/combinations group (- (count group) 1)))
+        all-partial-groups (set (map (fn [group] (keyword (str (set group)))) all-partial-groups))
+        existing-partial-groups (s/intersection all-paired-group-keys all-partial-groups)
+        partial-group (first existing-partial-groups)
+        remaining-area (s/difference  group (read-string (name partial-group)) existing-partial-groups)
+        ]
+    (do
+      (map  #( flatten-sets-one-level %1)
+           (cart-sets (s/union  #{ (partial-group @all-groupings)} #{ ((keyword (str (first (vec remaining-area)))) (deref all-possible-areas))}))))))
+
+
 (defn cartesian-for-group
   [group]
+  (if (> (count group) 2)
+    (do
+      (println "group size " (count group))
+  (cartesian-for-group-more-then-2 group))
+    (do
+      (println "group size " (count group))
   (cart-sets
     (reduce
       (fn [result num-tile]
         (conj result ((keyword (str (vec num-tile))) (deref all-possible-areas))))
       #{}
-      group)))
+      group)))))
 
 
 (defn verify-grouped-solutions []
-    (generate-all-possible-areas-for-board)
-    (wrap-finished-areas-with-path)
-    (do
-        (doseq [n (range 4 (+ (count (get-numbered-tiles)) 1))]
+  (generate-all-possible-areas-for-board)
+  (wrap-finished-areas-with-path)
+  (do
+    (doseq [n (range 2 (+ (count (get-numbered-tiles-greater-then-1)) 1))]
 
-          (let [numbered-tiles (set (get-numbered-tiles))
-                numbered-tiles-completed (set (get-numbered-tiles-for-completed-areas))
-                numbered-tiles-not-completed (s/difference numbered-tiles numbered-tiles-completed)
-                groups-of-n (map #(set %1) (c/combinations numbered-tiles-not-completed n))]
-            (do
-              (wrap-finished-areas-with-path)
-              (doseq [group groups-of-n]
-                (if (inter-reachable-group? group)
-                (let [group-tiles group
-                      group-areas-without-completed (cartesian-for-group group)
-                                                     ; move to let
-                      ; group-areas (map #(s/union (merge-areas-into-one %1) (set (get-numbered-tiles-for-completed-areas))) (set group-areas-without-completed))
-                      group-areas (set group-areas-without-completed)
-                      ; bla (debug-repl)
-                      stacked (stack-areas-to-discover-steady-tiles group-areas)
-                      ]
-                  (doseq [group-area group-areas]
-                    (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
-                          path-valid (path-continuous? board-for-area)
-                          no-coliding-areas (no-coliding-areas? board-for-area)
-                          ]
-                      (if (and path-valid no-coliding-areas)
-                        (do
+      (let [numbered-tiles (set (get-numbered-tiles))
+            numbered-tiles-completed (set (get-numbered-tiles-for-completed-areas))
+            numbered-tiles-not-completed (s/difference numbered-tiles numbered-tiles-completed)
+            groups-of-n (map #(set %1) (c/combinations numbered-tiles-not-completed n))]
 
-                          (println)
-                          (println " N: " n)
-                          (println "group: " group-tiles)
-                          (println "path-cont: " path-valid)
-                          ; (println "group areas" group-areas)
-                          ; (println "stacked " stacked)
-                          (println)
-                          (print-board board-for-area)
-                          (println)
-                          ; (println "Restricted board for SB")
-                          ; (print-board (create-restricted-board-for-tile (deref sb) [0 0]))
-                          (println "SOLUTION BOARD")
-                          (print-board (deref sb))
-                          ))))))))))))
+        (do
+          (wrap-finished-areas-with-path)
+          (doseq [group groups-of-n]
+            (if (inter-reachable-group? group)
+              (let [group-tiles group
+                    group-areas-without-completed (cartesian-for-group group)
+                    bla (add-areas-to-all-groupings group group-areas-without-completed)
+
+                    valid-areas-for-group (filter (fn [group-area]
+                                                    (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
+                                                          path-valid (path-continuous? board-for-area)
+                                                          no-coliding-areas (no-coliding-areas? board-for-area)]
+                                                      (and path-valid no-coliding-areas)))
+                                                  ((keyword (str group-tiles)) @all-groupings))
+
+                    bla (add-areas-to-all-groupings group valid-areas-for-group)
+                    bla (if (empty? valid-areas-for-group) (debug-repl))
+                    stacked (stack-areas-to-discover-steady-tiles valid-areas-for-group) ]
+                (doseq [group-area valid-areas-for-group]
+                  (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
+                    (do
+                      (println "Group areas before filtering: " (count group-areas-without-completed))
+                      (println "Group areas after filtering: " (count valid-areas-for-group))
+                      (println "Group area: " group-area)
+                      (println)
+                      (println " N: " n)
+                      (println)
+                      (print-board board-for-area)
+                      (println))))) )))))
+
+    (println "SOLUTION BOARD")
+    (print-board (deref sb))))
 
 
 (defn solutions-with-correct-path
