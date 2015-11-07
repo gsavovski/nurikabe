@@ -479,23 +479,28 @@
   [starting-tile board]
   (if (= 1 (get-tile-value b starting-tile))
     #{starting-tile}
-    (loop [current-tile starting-tile
+    (loop [next-dirs #{starting-tile}
            current-area #{}]
-      (if (= current-tile nil)
+      (if (= next-dirs nil)
         current-area
         (do
-          (let [all-dirs (set (possible-directions-within-area current-tile board))
+          (let [current-tile (first next-dirs)
+                next-dirs (disj next-dirs current-tile)
+                all-dirs (set (possible-directions-within-area current-tile board))
                 area-dirs (set (filter (fn[tile] (> (get-tile-value board tile) 0)) all-dirs))
-                new-area-dirs (s/difference area-dirs current-area)
-                new-area (s/union new-area-dirs current-area)]
-            (if (= new-area-dirs #{})
+                new-area-dirs (s/union (s/difference area-dirs current-area) next-dirs)
+                new-area (s/union current-area #{current-tile})]
+            (if (empty? new-area-dirs)
               (recur nil new-area)
-              (recur (first new-area-dirs) new-area))))))))
+              (recur new-area-dirs new-area))))))))
 
 
 (defn get-area-size-for-starting-tile
   [starting-tile board]
-  (count (traverse-area starting-tile board)))
+  (let [tile-value (get-tile-value board starting-tile)
+        area (traverse-area starting-tile board)
+        num-tiles (set (get-numbered-tiles))]
+    (if (>  (count (s/intersection area num-tiles)) 1) 0 (count area))))
 
 
 (defn no-coliding-areas?
@@ -503,8 +508,8 @@
   (let [numbered-tiles (get-numbered-tiles)]
     (every?
       (fn[tile] (let [size-for-area (get-area-size-for-starting-tile tile board)]
-                   (<= size-for-area (get-tile-value board tile))))
-      numbered-tiles)))
+                  (not= size-for-area 0))))
+    numbered-tiles))
 
 
 (defn wrap-area-with-path
@@ -722,13 +727,15 @@
                                                   ((keyword (str group-tiles)) @all-groupings))
 
                     bla (add-areas-to-all-groupings group valid-areas-for-group)
-                    bla (if (empty? valid-areas-for-group) (debug-repl))
+                    ; bla (if (empty? valid-areas-for-group) (debug-repl))
                     stacked (stack-areas-to-discover-steady-tiles valid-areas-for-group) ]
+
                 (doseq [group-area valid-areas-for-group]
                   (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
                     (do
                       (println "Group areas before filtering: " (count group-areas-without-completed))
                       (println "Group areas after filtering: " (count valid-areas-for-group))
+                      (println "Group: " group)
                       (println "Group area: " group-area)
                       (println)
                       (println " N: " n)
