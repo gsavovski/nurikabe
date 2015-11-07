@@ -508,8 +508,8 @@
   (let [numbered-tiles (get-numbered-tiles)]
     (every?
       (fn[tile] (let [size-for-area (get-area-size-for-starting-tile tile board)]
-                  (not= size-for-area 0))))
-    numbered-tiles))
+                  (not= size-for-area 0)))
+    numbered-tiles)))
 
 
 (defn wrap-area-with-path
