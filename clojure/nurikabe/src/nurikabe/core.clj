@@ -573,13 +573,63 @@
       (wrap-area-with-path num-tile))))
 
 
-(defn clean-up-all-posible-areas
+(defn clean-up-completed-in-all-posible-areas
   []
   (let [num-tiles-completed (get-numbered-tiles-for-completed-areas)
         solution-board (deref sb)]
     (doseq [num-tile num-tiles-completed]
       (let [area-for-tile (traverse-area num-tile solution-board)]
         (add-areas-to-all-possible-areas num-tile #{area-for-tile})))))
+
+
+(defn area-set->map-of-tile-to-area
+ "From: #{#{[0 8] [0 9] [0 10]} #{[2 10] [3 10] [4 10] [5 10]}}
+  To: {:[0 9] #{[0 8] [0 9] [0 10]} :[2 10] #{[2 10] [3 10] [4 10] [5 10]}}"
+  [group areas]
+  (reduce (fn [r area] (let [num-tile-for-area (first (s/intersection area group))]
+                         (assoc r (keyword (str num-tile-for-area)) area)))
+          {}
+          areas))
+
+(comment
+(def areas
+#{#{#{[0 8] [0 9] [0 10]} #{[2 10] [3 10] [4 10] [5 10]}}
+ #{#{[0 8] [0 9] [1 8]} #{[2 10] [3 10] [4 10] [5 10]}}})
+(area-set->map-of-tile-to-area #{[0 9]  [2 10]}  (first areas) )
+)
+
+(defn cartesian-grouping->map-of-areas-for-tile
+  [group]
+  (let [ areas-for-group ((keyword (str group)) @all-groupings)
+        ; creates an empty map as: {:tile1 #{} :tile2 #{}}
+        areas-for-tile (reduce (fn [r tile] (assoc r (keyword (str tile)) #{})) {} group)]
+    (reduce (fn [areas-for-tile area]
+
+              (let [area-map (area-set->map-of-tile-to-area group area)]
+
+                (reduce (fn [areas-for-tile tile]
+                          (let [area-for-tile ((keyword (str tile)) area-map)
+                                existing-area-for-tile ((keyword (str tile)) areas-for-tile)]
+                            (assoc areas-for-tile (keyword (str tile)) (s/union #{area-for-tile} existing-area-for-tile))
+                            ))
+                        areas-for-tile
+                        group)))
+            areas-for-tile
+            areas-for-group)))
+
+
+(defn remove-invalid-areas-in-all-posible-areas
+  "As the solution process unfolds, especially after
+  validating cartesian groupings, we need to go back
+  and remove the areas from the all-possible-areas atom
+  which do not belong in the valid cartesian groups"
+  [group]
+  (let [tile-areas-map (cartesian-grouping->map-of-areas-for-tile group)]
+    (doseq [tile group]
+      ; (println "BEFORE: Count for tile in all possible areas: " tile " : " (count ((keyword (str tile)) @all-possible-areas)))
+      (add-areas-to-all-possible-areas tile ((keyword (str tile)) tile-areas-map))
+      ; (println "AFTER: Count for tile in all possible areas: " tile " : " (count ((keyword (str tile)) @all-possible-areas)))
+      )))
 
 
 (defn stack-areas-to-discover-steady-tiles
@@ -592,7 +642,7 @@
       (for [tile stacked-without-numbered-tiles]
         (do
           (update-solution-board tile 1)
-          (clean-up-all-posible-areas))))))
+          (clean-up-completed-in-all-posible-areas))))))
 
 
 (defn abs [n] (max n (- n)))
@@ -724,7 +774,7 @@
       (let  [all-paired-group-keys (set (keys @all-groupings))
              all-partial-groups (set (c/combinations group (- (count group) 1)))
              all-partial-groups (set (map (fn [group] (keyword (str (set group)))) all-partial-groups))
-             bla (if (= group  #{[7 7]  [8 3]  [0 9]  [10 0]  [7 0]}) (debug-repl))
+             ; bla (if (= group  #{[7 7]  [8 3]  [0 9]  [10 0]  [7 0]}) (debug-repl))
              existing-partial-groups (s/intersection all-paired-group-keys all-partial-groups)
              partial-group (first existing-partial-groups)]
         ;No pre existing cartesian for a partial group
@@ -750,12 +800,14 @@
 
         (do
           (println " N: " n)
-          (println "numbered-tiles-not-completed count: " (count numbered-tiles-not-completed))
-          (println "numbered-tiles-not-completed tiles: " numbered-tiles-not-completed)
+          ; (println "numbered-tiles-not-completed count: " (count numbered-tiles-not-completed))
+          ; (println "numbered-tiles-not-completed tiles: " numbered-tiles-not-completed)
           ; (println "groups-of-n" groups-of-n)
           (wrap-finished-areas-with-path)
           (doseq [group groups-of-n]
-            (if (or (inter-reachable-group? group))
+            ; It can happen by the end not all tiles to be included,
+            ; because of the bellow interreachability criteria.
+            (if (or (inter-reachable-group? group) (= (count group) n))
               (let [group-tiles group
                     ; bla (println "Group  " group)
                     group-areas-without-completed (cartesian-for-group group)
@@ -770,15 +822,15 @@
 
                     bla (add-areas-to-all-groupings group valid-areas-for-group)
                     stacked (try (stack-areas-to-discover-steady-tiles valid-areas-for-group) (catch Exception e (debug-repl)))]
+                    bla (remove-invalid-areas-in-all-posible-areas group)
 
                 (doseq [group-area valid-areas-for-group]
                   (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
 
-                      (if (= n 5)
                     (do
                       (println " N: " n)
                       (println "Group: " group)
-                      (println "Group areas before filtering: " (count group-areas-without-completed))
+                      (println "Group areas before filtering: "  (count group-areas-without-completed))
                       (println "Group areas after filtering: " (count valid-areas-for-group))
                       ; (println "Total combos for group" (count ((keyword (str group  )) @all-groupings)))
                       ; (println "Group area: " group-area)
@@ -790,7 +842,6 @@
                              (path-without-squares? board-for-area))
                       (println "SOLUTION")
                       )
-                    )
                     )))) ))))
 
     (println "SOLUTION BOARD")
