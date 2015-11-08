@@ -94,12 +94,28 @@
    [U 1 U U 2 U U 1 U U]
    [U U U 1 U U U U 3 U]])
 
+; 10 secs in ruby
+(def sample8
+   [[U U U U 2 U U U U 3 U]
+    [U U U U U 2 U U U U U]
+    [3 U U 4 U U U U U U 4]
+    [U U U U U U U U 1 U U]
+    [U U U U 2 U U 4 U U U]
+    [2 U U 2 U U U U U U U]
+    [U U U U 2 U U U 2 U U]
+    [2 U U U U U U 2 U 1 U]
+    [U U U 3 U U U U U U 1]
+    [U U U U U U U U U 1 U]
+    [4 U U U U U U 4 U U U]
+  ])
+
 ; Current puzzle
 ; TODO: turn this into a global swappable atom
 ; (def b puzzle-board)
 ; (def b puzzle-board-gm-walker-anderson)
 ; (def b puzzle-board-tester)
-(def b gm-prasanna)
+; (def b gm-prasanna)
+(def b sample8)
 
 ; Final solution board
 (def sb (atom b))
@@ -379,6 +395,11 @@
         num-tiles-sum (reduce + 0 num-tiles-values)
         total-tiles-count (* (board-row-count) (board-column-count))]
     (- total-tiles-count num-tiles-sum)))
+
+
+(defn solution-board-total-areas-size []
+  (let [num-tiles (get-numbered-tiles)]
+    (reduce (fn [sum tile] (+ sum (get-tile-value b tile))) 0 num-tiles)))
 
 
 ; (defn traverse-path
@@ -670,34 +691,49 @@
           coll))
 
 
-(defn cartesian-for-group-more-then-2 [group]
+(defn cartesian-for-group-with-pre-existing-partial-cartesian
+  [group]
   (let [n (count group)
         all-paired-group-keys (set (keys @all-groupings))
         all-partial-groups (set (c/combinations group (- (count group) 1)))
         all-partial-groups (set (map (fn [group] (keyword (str (set group)))) all-partial-groups))
+        ; bla (if (= group  #{[7 7]  [8 3]  [0 9]  [10 0]  [7 0]}) (debug-repl))
         existing-partial-groups (s/intersection all-paired-group-keys all-partial-groups)
         partial-group (first existing-partial-groups)
-        remaining-area (s/difference  group (read-string (name partial-group)) existing-partial-groups)
-        ]
+        remaining-area (s/difference  group (read-string (name partial-group)) existing-partial-groups)]
     (do
       (map  #( flatten-sets-one-level %1)
            (cart-sets (s/union  #{ (partial-group @all-groupings)} #{ ((keyword (str (first (vec remaining-area)))) (deref all-possible-areas))}))))))
 
 
-(defn cartesian-for-group
+(defn cartesian-for-group-with-OUT-pre-existing-partial-cartesian
   [group]
-  (if (> (count group) 2)
-    (do
-      (println "group size " (count group))
-  (cartesian-for-group-more-then-2 group))
-    (do
-      (println "group size " (count group))
   (cart-sets
     (reduce
       (fn [result num-tile]
         (conj result ((keyword (str (vec num-tile))) (deref all-possible-areas))))
       #{}
-      group)))))
+      group)))
+
+
+(defn cartesian-for-group
+  [group]
+  (let [n (count group)]
+    (if (= n 2)
+      (cartesian-for-group-with-OUT-pre-existing-partial-cartesian group)
+      (let  [all-paired-group-keys (set (keys @all-groupings))
+             all-partial-groups (set (c/combinations group (- (count group) 1)))
+             all-partial-groups (set (map (fn [group] (keyword (str (set group)))) all-partial-groups))
+             bla (if (= group  #{[7 7]  [8 3]  [0 9]  [10 0]  [7 0]}) (debug-repl))
+             existing-partial-groups (s/intersection all-paired-group-keys all-partial-groups)
+             partial-group (first existing-partial-groups)]
+        ;No pre existing cartesian for a partial group
+        (if (nil? partial-group)
+          (cartesian-for-group-with-OUT-pre-existing-partial-cartesian group)
+          ;Existing cartesian for a part of the group already exists, so do not
+          ;calculate all fresh and reuse the existing"
+          (let [remaining-area (s/difference  group (read-string (name partial-group)) existing-partial-groups)]
+          (cartesian-for-group-with-pre-existing-partial-cartesian group)))))))
 
 
 (defn verify-grouped-solutions []
@@ -705,6 +741,7 @@
   (wrap-finished-areas-with-path)
   (do
     (doseq [n (range 2 (+ (count (get-numbered-tiles-greater-then-1)) 1))]
+    ; (doseq [n (range 2 (+ (count (get-numbered-tiles)) 1))]
 
       (let [numbered-tiles (set (get-numbered-tiles))
             numbered-tiles-completed (set (get-numbered-tiles-for-completed-areas))
@@ -712,10 +749,15 @@
             groups-of-n (map #(set %1) (c/combinations numbered-tiles-not-completed n))]
 
         (do
+          (println " N: " n)
+          (println "numbered-tiles-not-completed count: " (count numbered-tiles-not-completed))
+          (println "numbered-tiles-not-completed tiles: " numbered-tiles-not-completed)
+          ; (println "groups-of-n" groups-of-n)
           (wrap-finished-areas-with-path)
           (doseq [group groups-of-n]
-            (if (inter-reachable-group? group)
+            (if (or (inter-reachable-group? group))
               (let [group-tiles group
+                    ; bla (println "Group  " group)
                     group-areas-without-completed (cartesian-for-group group)
                     bla (add-areas-to-all-groupings group group-areas-without-completed)
 
@@ -727,21 +769,29 @@
                                                   ((keyword (str group-tiles)) @all-groupings))
 
                     bla (add-areas-to-all-groupings group valid-areas-for-group)
-                    ; bla (if (empty? valid-areas-for-group) (debug-repl))
-                    stacked (stack-areas-to-discover-steady-tiles valid-areas-for-group) ]
+                    stacked (try (stack-areas-to-discover-steady-tiles valid-areas-for-group) (catch Exception e (debug-repl)))]
 
                 (doseq [group-area valid-areas-for-group]
                   (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
+
+                      (if (= n 5)
                     (do
+                      (println " N: " n)
+                      (println "Group: " group)
                       (println "Group areas before filtering: " (count group-areas-without-completed))
                       (println "Group areas after filtering: " (count valid-areas-for-group))
-                      (println "Group: " group)
-                      (println "Group area: " group-area)
-                      (println)
-                      (println " N: " n)
+                      ; (println "Total combos for group" (count ((keyword (str group  )) @all-groupings)))
+                      ; (println "Group area: " group-area)
                       (println)
                       (print-board board-for-area)
-                      (println))))) )))))
+                      (println))
+
+                    (if (and (= (solution-board-total-areas-size) (count (get-area-tiles-in-board board-for-area)))
+                             (path-without-squares? board-for-area))
+                      (println "SOLUTION")
+                      )
+                    )
+                    )))) ))))
 
     (println "SOLUTION BOARD")
     (print-board (deref sb))))
@@ -842,7 +892,7 @@
 ; (use 'clojure.stacktrace)
 
 ; print root cause
-; (print-stack-trace  (root-cause *e) 3)
+; (print-stack-trace  (root-cause *e) 13)
 ; print dump of last N rows
 ; (print-stack-trace *e 5))
 ; print cause rows
