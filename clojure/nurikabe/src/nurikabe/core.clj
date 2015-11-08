@@ -790,17 +790,14 @@
   (generate-all-possible-areas-for-board)
   (wrap-finished-areas-with-path)
   (do
-    (doseq [n (range 2 (+ (count (get-numbered-tiles-greater-then-1)) 1))]
-    ; (doseq [n (range 2 (+ (count (get-numbered-tiles)) 1))]
-
+    (loop [n 2]
       (let [numbered-tiles (set (get-numbered-tiles))
             numbered-tiles-completed (set (get-numbered-tiles-for-completed-areas))
             numbered-tiles-not-completed (s/difference numbered-tiles numbered-tiles-completed)
             groups-of-n (map #(set %1) (c/combinations numbered-tiles-not-completed n))]
-
         (do
           (println " N: " n)
-          ; (println "numbered-tiles-not-completed count: " (count numbered-tiles-not-completed))
+          (println "numbered-tiles-not-completed count: " (count numbered-tiles-not-completed))
           ; (println "numbered-tiles-not-completed tiles: " numbered-tiles-not-completed)
           ; (println "groups-of-n" groups-of-n)
           (wrap-finished-areas-with-path)
@@ -822,7 +819,7 @@
 
                     bla (add-areas-to-all-groupings group valid-areas-for-group)
                     stacked (try (stack-areas-to-discover-steady-tiles valid-areas-for-group) (catch Exception e (debug-repl)))]
-                    bla (remove-invalid-areas-in-all-posible-areas group)
+                bla (remove-invalid-areas-in-all-posible-areas group)
 
                 (doseq [group-area valid-areas-for-group]
                   (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
@@ -832,17 +829,15 @@
                       (println "Group: " group)
                       (println "Group areas before filtering: "  (count group-areas-without-completed))
                       (println "Group areas after filtering: " (count valid-areas-for-group))
-                      ; (println "Total combos for group" (count ((keyword (str group  )) @all-groupings)))
-                      ; (println "Group area: " group-area)
                       (println)
                       (print-board board-for-area)
                       (println))
 
                     (if (and (= (solution-board-total-areas-size) (count (get-area-tiles-in-board board-for-area)))
                              (path-without-squares? board-for-area))
-                      (println "SOLUTION")
-                      )
-                    )))) ))))
+                      (println "SOLUTION"))))))))
+        (if (> (count numbered-tiles-not-completed) n)
+          (recur (+ n 1)))))
 
     (println "SOLUTION BOARD")
     (print-board (deref sb))))
