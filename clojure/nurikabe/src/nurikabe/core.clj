@@ -148,31 +148,48 @@
     [U 37 U U U U U U U U]
     [U U U U U U U U U U]])
 
-  ; Nikoli_casty = Matrix[
-  ;   [0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,1,0,3],
-  ;   [0,3,0,0,0,0,5,0,0,0,1,0,2,0,0,0,0,0],
-  ;   [0,0,0,0,0,0,0,5,0,3,0,0,0,0,0,0,0,0],
-  ;   [0,0,0,0,0,0,0,0,0,0,0,0,2,0,3,0,0,0],
-  ;   [0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0],
-  ;   [0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0],
-  ;   [0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0],
-  ;   [0,0,0,0,0,0,0,0,3,0,4,0,0,0,0,0,0,0],
-  ;   [0,0,0,0,0,1,0,1,0,0,0,5,0,0,0,0,5,0],
-  ;   [4,0,4,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0]
-  ; ]
+
+(def nikoli_casty
+  [[U U 4 U U U U U U U U U U U U 1 U 3]
+   [U 3 U U U U 5 U U U 1 U 2 U U U U U]
+   [U U U U U U U 5 U 3 U U U U U U U U]
+   [U U U U U U U U U U U U 2 U 3 U U U]
+   [U U 4 U U U U U U U U U U U U U 3 U]
+   [U 3 U U U U U U U U U U U U U 4 U U]
+   [U U U 1 U 1 U U U U U U U U U U U U]
+   [U U U U U U U U 3 U 4 U U U U U U U]
+   [U U U U U 1 U 1 U U U 5 U U U U 5 U]
+   [4 U 4 U U U U U U U U U U U U 3 U U]])
+
+(def sample7
+   [[4 U U U U U U U 7 U]
+    [U U U U U U U U U U]
+    [U U U U U 4 U U U U]
+    [U U 7 U 1 U U U U U]
+    [U U U U U U U U 3 U]
+    [U U U U 1 U U U U 2]
+    [U U 1 U U U U 2 U U]
+    [U U U U U 2 U U U U]
+    [U U U U 4 U U U 6 U]
+    [U 1 U U U 2 U U U U]
+    [U U U U U U U U U 2]
+    [U U U U 3 U U U U U]
+    [U U 3 U U U U U U U]])
+
 
 ; Current puzzle
 ; TODO: turn this into a global swappable atom
 
 ; (def b puzzle-board)
-; (def b puzzle-board-gm-walker-anderson)
+(def b puzzle-board-gm-walker-anderson) ;ruby 3 min; clojure 10 sec (solution in-complete, minor bug)
 ; (def b puzzle-board-tester)
-; (def b gm-prasanna)
-; (def b sample8)
-; (def b sample6) ;ruby 19 sec ; clojure 4.5 sec
-(def b nikoli_10ka) ;ruby 2:08 sec
+; (def b gm-prasanna) ; ruby 3 sec ; clojure 6 sec
+;(def b sample8) ; ruby 38 sec; clojure 11 sec
+; (def b sample6) ;ruby 19 sec ; clojure 2.5 sec
+; (def b nikoli_10ka) ;ruby 2:08 sec; clojure 17 sec
 ; (def b tom-collyer37) ;ruby no way
-; Nurikabe.new(Nikoli_casty).board.solve #1922 sec
+; (def b nikoli_casty) ; ruby #1922 sec; clojure 25 sec
+(def b sample7) ; ruby fail; clojure ?
 
 ; Final solution board
 (def sb (atom b))
@@ -868,11 +885,11 @@
 
 (def numbered-tile-complexity
   {:1 1 :2 4 :3 18 :4 76 :5 315 :6 1296 :7 5320
-   :8 21800 :9 89190 :10 364460})
+   :8 21800 :9 89190 :10 364460 :11 999999 :37 9999999999999})
 
 (defn weight-for-group
   [group]
-  (reduce (fn [total-weight tile] (* total-weight ((keyword (str (get-tile-value b tile))) numbered-tile-complexity))) 1 group))
+  (reduce (fn [total-weight tile] (*' total-weight ((keyword (str (get-tile-value b tile))) numbered-tile-complexity))) 1 group))
 
 
 (defn all-groupings-for-size
@@ -897,6 +914,13 @@
       (first  splited-groups-by-treshold-weight))))
 
 
+; TODO:
+; - Utilize delayed-groups
+; - sort delayed-groups before using
+; - wrap finished area only, not all everytime
+; - filter groupings by intersecting areas first before, doing
+;   the traversal for checking area independance
+;
 (defn verify-grouped-solutions []
   (wrap-finished-areas-with-path)
   (do
@@ -916,7 +940,6 @@
               (let [
                     group-tiles (if (set? group) group (read-string (str (name (first group)))))
                     bla (println "Group  " group-tiles)
-                    bla (println "COUNT: " (count  ((keyword  (str  [7 1])) @all-possible-areas)))
                     bla (generate-possible-areas-for-group group-tiles)
                     group-areas-without-completed (cartesian-for-group group-tiles)
                     bla (add-areas-to-all-groupings group-tiles group-areas-without-completed)
@@ -946,7 +969,8 @@
                              (path-without-squares? board-for-area))
                       (println "SOLUTION")))))
               )))
-        (if (and (>= (count (numbered-tiles-not-completed)) n) (not (empty? @delayed-groups)))
+        ; (if (and (>= (count (numbered-tiles-not-completed)) n) (not (empty? @delayed-groups)))
+        (if (>= (count (numbered-tiles-not-completed)) n)
           (recur (+ n 1))))
       )
 
