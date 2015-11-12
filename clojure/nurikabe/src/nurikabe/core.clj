@@ -181,15 +181,15 @@
 ; TODO: turn this into a global swappable atom
 
 ; (def b puzzle-board)
-(def b puzzle-board-gm-walker-anderson) ;ruby 3 min; clojure 10 sec (solution in-complete, minor bug)
+; (def b puzzle-board-gm-walker-anderson) ;ruby 3 min; clojure 10 sec (solution in-complete, minor bug)
 ; (def b puzzle-board-tester)
 ; (def b gm-prasanna) ; ruby 3 sec ; clojure 6 sec
 ;(def b sample8) ; ruby 38 sec; clojure 11 sec
 ; (def b sample6) ;ruby 19 sec ; clojure 2.5 sec
-; (def b nikoli_10ka) ;ruby 2:08 sec; clojure 17 sec
+(def b nikoli_10ka) ;ruby 2:08 sec; clojure 17 sec
 ; (def b tom-collyer37) ;ruby no way
+; (def b sample7) ; ruby fail; clojure ?
 ; (def b nikoli_casty) ; ruby #1922 sec; clojure 25 sec
-(def b sample7) ; ruby fail; clojure ?
 
 ; Final solution board
 (def sb (atom b))
@@ -914,6 +914,21 @@
       (first  splited-groups-by-treshold-weight))))
 
 
+(defn non-intersecting-area-group? [area-group]
+  (empty? (apply s/intersection area-group)))
+
+
+(defn clean-intersecting-areas-for-grouping
+  [group]
+  (do
+    ; (debug-repl)
+  (let [all-areas ((keyword (str group)) @all-groupings)
+        filtered-areas (filter
+                         (fn [area-group]  (non-intersecting-area-group? area-group))
+                         all-areas)]
+    (add-areas-to-all-groupings group filtered-areas))))
+
+
 ; TODO:
 ; - Utilize delayed-groups
 ; - sort delayed-groups before using
@@ -922,6 +937,7 @@
 ;   the traversal for checking area independance
 ;
 (defn verify-grouped-solutions []
+  ; wraps the areas of size 1
   (wrap-finished-areas-with-path)
   (do
     (loop [n 2]
@@ -943,6 +959,9 @@
                     bla (generate-possible-areas-for-group group-tiles)
                     group-areas-without-completed (cartesian-for-group group-tiles)
                     bla (add-areas-to-all-groupings group-tiles group-areas-without-completed)
+
+                    bla (clean-intersecting-areas-for-grouping group-tiles)
+
 
                     valid-areas-for-group (filter (fn [group-area]
                                                     (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
