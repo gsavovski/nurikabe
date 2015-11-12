@@ -597,7 +597,17 @@
     (if (>  (count (s/intersection area num-tiles)) 1) 0 (count area))))
 
 
+(defn no-coliding-areas-for-group?
+  [board group]
+  (every?
+    (fn[tile] (let [size-for-area (get-area-size-for-starting-tile tile board)]
+                (not= size-for-area 0)))
+    group))
+
+
 (defn no-coliding-areas?
+  "Deprecated, no we check only the areas part
+  of group "
   [board]
   (let [numbered-tiles (get-numbered-tiles)]
     (every?
@@ -966,7 +976,7 @@
                     valid-areas-for-group (filter (fn [group-area]
                                                     (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
                                                           path-valid (path-continuous? board-for-area)
-                                                          no-coliding-areas (no-coliding-areas? board-for-area)]
+                                                          no-coliding-areas (no-coliding-areas-for-group? board-for-area group-tiles)]
                                                       (and path-valid no-coliding-areas)))
                                                   ((keyword (str group-tiles)) @all-groupings))
                     bla (add-areas-to-all-groupings group-tiles valid-areas-for-group)
