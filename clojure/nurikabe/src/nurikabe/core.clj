@@ -186,7 +186,7 @@
 ; (def b gm-prasanna) ; ruby 3 sec ; clojure 6 sec
 ;(def b sample8) ; ruby 38 sec; clojure 11 sec
 ; (def b sample6) ;ruby 19 sec ; clojure 2.5 sec
-(def b nikoli_10ka) ;ruby 2:08 sec; clojure 17 sec
+(def b nikoli_10ka) ;ruby 2:08 sec; clojure 10 sec
 ; (def b tom-collyer37) ;ruby no way
 ; (def b sample7) ; ruby fail; clojure ?
 ; (def b nikoli_casty) ; ruby #1922 sec; clojure 25 sec
@@ -1015,6 +1015,7 @@
           (recur (+ n 1))))
       )
 
+    (wrap-finished-areas-with-path)
     (println "SOLUTION BOARD")
     (print-board (deref sb))))
 
