@@ -43,7 +43,7 @@
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
-    [3 U U U U U U U U U U U U U U 3 U U U U U U U U U U U U U U U 3]
+    [3 U U U U U U U U U U U U U U 12 U U U U U U U U U U U U U U U 3]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
     [U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U U]
@@ -904,7 +904,7 @@
 
 (def numbered-tile-complexity
   {:1 1 :2 4 :3 18 :4 76 :5 315 :6 1296 :7 5320
-   :8 21800 :9 89190 :10 364460 :11 999999 :37 9999999999999})
+   :8 21800 :9 89190 :10 364460 :11 1487948 :37 9999999999999})
 
 (defn weight-for-group
   [group]
