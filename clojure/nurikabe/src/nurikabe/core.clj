@@ -213,6 +213,29 @@
   (swap! all-groupings assoc (keyword (str tiles)) areas))
 
 
+; TODO: Maybe not needed!
+(def only-deleyed-remaining (atom false))
+
+
+(def delayed-groups (atom {}))
+
+
+(defn add-to-delayed-group
+  [group]
+  (swap! delayed-groups #(merge % group)))
+
+
+(defn pop-from-delayed-group
+  []
+  (let [last-group (last @delayed-groups)
+        rest-group (rest @delayed-groups)]
+    (do
+      (reset! delayed-groups rest-group)
+      ; we return last grouping because it will be
+      ; a cartesian of less numbered tiles
+      last-group)))
+
+
 (defn get-tile-value
   [board [x y]]
    (let [value (nth (nth board x) y)]
@@ -616,16 +639,6 @@
     numbered-tiles)))
 
 
-(defn wrap-area-with-path
-  [numbered-tile]
-  (let [solution-board (deref sb)
-        area-for-tile (traverse-area numbered-tile solution-board)]
-    (doseq [tile area-for-tile]
-      (let [dirs (possible-directions-for-tile tile solution-board) ]
-        (doseq [d dirs]
-        (update-solution-board d 0))))))
-
-
 (defn get-numbered-tiles-for-completed-areas
   []
   (let [num-tiles (get-numbered-tiles)
@@ -635,6 +648,24 @@
                      area-for-tile (traverse-area num-tile solution-board)]
                (= area-size (get-tile-value solution-board num-tile))))
              num-tiles)))
+
+
+(defn clean-delayed-groups
+  []
+  (let [completed-tiles (set (get-numbered-tiles-for-completed-areas))
+        tiles-for-delayed-groupings (set (map #(read-string  (name %1))  (keys @delayed-groups)))
+        clean-delayed-groupings (into {} (filter (fn [[k v]] (empty? (s/intersection (read-string  (name k)) completed-tiles))) @delayed-groups))]
+  (reset! delayed-groups clean-delayed-groupings)))
+
+
+(defn wrap-area-with-path
+  [numbered-tile]
+  (let [solution-board (deref sb)
+        area-for-tile (traverse-area numbered-tile solution-board)]
+    (doseq [tile area-for-tile]
+      (let [dirs (possible-directions-for-tile tile solution-board) ]
+        (doseq [d dirs]
+        (update-solution-board d 0))))))
 
 
 (defn get-completed-areas
@@ -864,28 +895,6 @@
           (cartesian-for-group-with-pre-existing-partial-cartesian group)))))))
 
 
-(def only-deleyed-remaining (atom false))
-
-
-(def delayed-groups (atom {}))
-
-
-(defn add-to-delayed-group
-  [group]
-  (swap! delayed-groups #(merge % group)))
-
-
-(defn pop-from-delayed-group
-  []
-  (let [last-group (last @delayed-groups)
-        rest-group (rest @delayed-groups)]
-    (do
-      (reset! delayed-groups rest-group)
-      ; we return last grouping because it will be
-      ; a cartesian of less numbered tiles
-      last-group)))
-
-
 (defn numbered-tiles-not-completed
   []
   (let [numbered-tiles (set (get-numbered-tiles))
@@ -956,10 +965,13 @@
             ; groups-of-n (if (and (< (count (numbered-tiles-not-completed)) n)(= (count groups-of-n) 0)) @delayed-groups)
             ]
         (do
+          (wrap-finished-areas-with-path)
+          (println "@delayed-groups (before): " @delayed-groups)
+          (clean-delayed-groups)
           (println " N: " n)
           (println "numbered-tiles-not-completed count: " (count (numbered-tiles-not-completed)))
-          (println "@delayed-groups: " @delayed-groups)
-          (wrap-finished-areas-with-path)
+          (println "@delayed-groups (after): " @delayed-groups)
+
           (doseq [group groups-of-n]
             (do
               (println "Current group: " group)
