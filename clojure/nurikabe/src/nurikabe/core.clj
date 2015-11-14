@@ -213,10 +213,6 @@
   (swap! all-groupings assoc (keyword (str tiles)) areas))
 
 
-; TODO: Maybe not needed!
-(def only-deleyed-remaining (atom false))
-
-
 (def delayed-groups (atom {}))
 
 
@@ -709,12 +705,6 @@
           {}
           areas))
 
-(comment
-(def areas
-#{#{#{[0 8] [0 9] [0 10]} #{[2 10] [3 10] [4 10] [5 10]}}
- #{#{[0 8] [0 9] [1 8]} #{[2 10] [3 10] [4 10] [5 10]}}})
-(area-set->map-of-tile-to-area #{[0 9]  [2 10]}  (first areas) )
-)
 
 (defn cartesian-grouping->map-of-areas-for-tile
   [group]
@@ -849,7 +839,7 @@
 
 (defn flatten-sets-one-level  [coll]
   "Flattens set of sets to one level of sets (e.g)
-  from: #{#{[3 4]  [2 4]} #{#{[6 6] [6 5] [5 7] [5 6]} #{[8 4]  [7 4]}}}
+  from: #{#{[3 4] [2 4]} #{#{[6 6] [6 5] [5 7] [5 6]} #{[8 4] [7 4]}}}
   to:  #{#{[3 4] [2 4]} #{[6 6] [6 5] [5 7] [5 6]} #{[8 4] [7 4]}}"
   (reduce  (fn [r c] (if  (set? (first c)) (s/union r c) (s/union r #{ c})))
           #{}
@@ -931,7 +921,8 @@
                                                             (compare [(get groups-of-n-weightened key1) key1]
                                                                      [(get groups-of-n-weightened key2) key2])))
                                            groups-of-n-weightened)
-        splited-groups-by-treshold-weight  (split-with  (fn [[key value]] (<= value 200000))  groups-of-n-sorted-by-weight)]
+        splited-groups-by-treshold-weight  (split-with  (fn [[key value]] (<= value 500000))  groups-of-n-sorted-by-weight)
+        ]
     (do
       (add-to-delayed-group (second splited-groups-by-treshold-weight))
       (first  splited-groups-by-treshold-weight))))
@@ -951,40 +942,19 @@
                          all-areas)]
     (add-areas-to-all-groupings group filtered-areas))))
 
+(defn numbered-tiles-from-delayed-groups []
+  (reduce #(s/union %1 %2) #{}  (map #(read-string  (name %1))  (keys @delayed-groups))))
 
-; TODO:
-; - wrap finished area only, not all everytime
-;
-(defn verify-grouped-solutions []
-  ; wraps the areas of size 1
-  (wrap-finished-areas-with-path)
-  (do
-    (loop [n 2]
-      (let [groups-of-n (all-groupings-for-size n)
-            bla (println "COUNT OF GROUPS OF N " (count groups-of-n))
-            bla (println "@delayed-groups (before): " @delayed-groups)
-            bla (clean-delayed-groups)
-            bla (println "@delayed-groups (after): " @delayed-groups)
-            ; groups-of-n (if (= (count groups-of-n) 0) (map #(set %1) (c/combinations (numbered-tiles-not-completed) 2)) groups-of-n)
-            groups-of-n (if (= (count groups-of-n) 0)  @delayed-groups groups-of-n)
-            ]
-        (do
-          (wrap-finished-areas-with-path)
-          (println " N: " n)
-          (println "numbered-tiles-not-completed count: " (count (numbered-tiles-not-completed)))
 
-          (doseq [group groups-of-n]
-            (do
-              (println "Current group: " group)
-              (let [
-                    group-tiles (if (set? group) group (read-string (str (name (first group)))))
-                    bla (println "Group  " group-tiles)
+(defn verify-solutions
+  [solutions]
+  (doseq [group solutions]
+              (let [group-tiles (if (set? group) group (read-string (str (name (first group)))))
+
                     bla (generate-possible-areas-for-group group-tiles)
                     group-areas-without-completed (cartesian-for-group group-tiles)
                     bla (add-areas-to-all-groupings group-tiles group-areas-without-completed)
-
                     bla (clean-intersecting-areas-for-grouping group-tiles)
-
 
                     valid-areas-for-group (filter (fn [group-area]
                                                     (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
@@ -994,27 +964,51 @@
                                                   ((keyword (str group-tiles)) @all-groupings))
                     bla (add-areas-to-all-groupings group-tiles valid-areas-for-group)
                     stacked (try (stack-areas-to-discover-steady-tiles valid-areas-for-group) (catch Exception e (debug-repl)))]
-                bla (remove-invalid-areas-in-all-posible-areas group-tiles)
+                    (remove-invalid-areas-in-all-posible-areas group-tiles)
 
                 (doseq [group-area valid-areas-for-group]
                   (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
-                    (do
-                      (println " N: " n)
-                      ; (println "Group: " group)
-                      ; (println "Group areas before filtering: "  (count group-areas-without-completed))
-                      ; (println "Group areas after filtering: " (count valid-areas-for-group))
-                      (println)
-                      (print-board board-for-area)
-                      (println))
-
                     (if (and (= (solution-board-total-areas-size) (count (get-area-tiles-in-board board-for-area)))
                              (path-without-squares? board-for-area))
-                      (println "SOLUTION")))))
-              )))
-        ; (if (and (>= (count (numbered-tiles-not-completed)) n) (not (empty? @delayed-groups)))
+                      (do
+                      ; (print-board board-for-area)
+                      ; (println "SOLUTION")
+                      (wrap-finished-areas-with-path)
+                      (reset! sb board-for-area))))))))
+
+; TODO:
+; - wrap finished area only, not all everytime
+; - calculate actual weight per group from multipling areas count form @all-possible-areas
+;
+(defn verify-grouped-solutions []
+  ; wraps the areas of size 1
+  (wrap-finished-areas-with-path)
+  (println "Groups of N")
+  (do
+    (loop [n 2]
+      (let [groups-of-n (all-groupings-for-size n)
+            bla (clean-delayed-groups) ]
+        (do
+          (wrap-finished-areas-with-path)
+          (println " N: " n)
+          (println "Groups of n count: " (count groups-of-n))
+          (println "Not completed numbered tiles: " (numbered-tiles-not-completed))
+          (verify-solutions groups-of-n)
+          )
         (if (>= (count (numbered-tiles-not-completed)) n)
-          (recur (+ n 1))))
-      )
+          (recur (+ n 1)))))
+
+    (println "Groups of N done")
+
+    (println "Delayed groups")
+    ; Verify delayed groups
+    (verify-solutions  @delayed-groups)
+    (println "Delayed groups done")
+
+    (println "Final leftovers")
+    (if (= (numbered-tiles-not-completed) (numbered-tiles-from-delayed-groups))
+      (verify-solutions #{(numbered-tiles-not-completed)}))
+    (println "Final leftovers done")
 
     (wrap-finished-areas-with-path)
     (println "SOLUTION BOARD")
