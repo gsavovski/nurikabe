@@ -181,10 +181,10 @@
 ; TODO: turn this into a global swappable atom
 
 ; (def b puzzle-board)
-(def b puzzle-board-gm-walker-anderson) ;ruby 3 min; clojure 10 sec (solution in-complete, minor bug)
+; (def b puzzle-board-gm-walker-anderson) ;ruby 3 min; clojure 11 sec
 ; (def b puzzle-board-tester)
-; (def b gm-prasanna) ; ruby 3 sec ; clojure 6 sec
-; (def b sample8) ; ruby 38 sec; clojure 9 sec
+; (def b gm-prasanna) ; ruby 3 sec ; clojure 4 sec
+(def b sample8) ; ruby 38 sec; clojure 8 sec
 ; (def b sample6) ;ruby 19 sec ; clojure 2 sec
 ; (def b nikoli_10ka) ;ruby 2:08 sec; clojure 10 sec
 ; (def b tom-collyer37) ;ruby no way
@@ -971,6 +971,10 @@
 
         (doseq [group-area valid-areas-for-group]
           (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
+            (do
+              (println)
+              (print-board board-for-area)
+              (println)
             (if (and (= (solution-board-total-areas-size) (count (get-area-tiles-in-board board-for-area)))
                      (path-without-squares? board-for-area))
               (do
@@ -980,7 +984,7 @@
                 (reset! sb board-for-area)
                 (reset! solution-found true)
                 ; figure out how to rewrite the outer doseq
-                (throw  (Exception.  "Solution was found"))))))))))
+                (throw  (Exception.  "Solution was found")))))))))))
 
 
 ; TODO:
@@ -1014,8 +1018,13 @@
             (println "Delayed groups done")
 
             (println "Final leftovers")
-            (if (= (numbered-tiles-not-completed) (numbered-tiles-from-delayed-groups))
-              (verify-solutions #{(numbered-tiles-not-completed)}))
+            (println "Leftovers: " (numbered-tiles-not-completed))
+            (println "Delayed tiles: " (numbered-tiles-from-delayed-groups))
+            ; (if (= (numbered-tiles-not-completed) (numbered-tiles-from-delayed-groups))
+            (if true
+              (do
+                (println "Yay processing leftovers")
+              (verify-solutions #{(numbered-tiles-not-completed)})))
             (println "Final leftovers done"))
 
          ; Rewrite this to avoid exceptoin to break out of teh outer doseq
