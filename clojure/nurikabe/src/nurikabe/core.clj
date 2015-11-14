@@ -15,7 +15,7 @@
 
 (def puzzle-board-gm-walker-anderson
    [[U U U U U U U U U U]
-    [U U 4 U 11 U U U U U]
+    [U U 4 U 9 U U U U U]
     [U 5 U U U 3 U U U U]
     [U U U U U U U U U U]
     [U U U U U 2 U U U U]
@@ -181,15 +181,15 @@
 ; TODO: turn this into a global swappable atom
 
 ; (def b puzzle-board)
-; (def b puzzle-board-gm-walker-anderson) ;ruby 3 min; clojure 10 sec (solution in-complete, minor bug)
+(def b puzzle-board-gm-walker-anderson) ;ruby 3 min; clojure 10 sec (solution in-complete, minor bug)
 ; (def b puzzle-board-tester)
 ; (def b gm-prasanna) ; ruby 3 sec ; clojure 6 sec
-;(def b sample8) ; ruby 38 sec; clojure 11 sec
-; (def b sample6) ;ruby 19 sec ; clojure 2.5 sec
-(def b nikoli_10ka) ;ruby 2:08 sec; clojure 10 sec
+; (def b sample8) ; ruby 38 sec; clojure 9 sec
+; (def b sample6) ;ruby 19 sec ; clojure 2 sec
+; (def b nikoli_10ka) ;ruby 2:08 sec; clojure 10 sec
 ; (def b tom-collyer37) ;ruby no way
 ; (def b sample7) ; ruby fail; clojure ?
-; (def b nikoli_casty) ; ruby #1922 sec; clojure 25 sec
+; (def b nikoli_casty) ; ruby #1922 sec; clojure 23 sec
 
 ; Final solution board
 (def sb (atom b))
@@ -654,8 +654,12 @@
   []
   (let [completed-tiles (set (get-numbered-tiles-for-completed-areas))
         tiles-for-delayed-groupings (set (map #(read-string  (name %1))  (keys @delayed-groups)))
-        clean-delayed-groupings (into {} (filter (fn [[k v]] (empty? (s/intersection (read-string  (name k)) completed-tiles))) @delayed-groups))]
-  (reset! delayed-groups clean-delayed-groupings)))
+        clean-delayed-groupings (into {} (filter (fn [[k v]] (empty? (s/intersection (read-string  (name k)) completed-tiles))) @delayed-groups))
+        sorted-delayed-groups (into (sorted-map-by (fn [key1 key2]
+                                                            (compare [(get clean-delayed-groupings key1) key1]
+                                                                     [(get clean-delayed-groupings key2) key2])))
+                                           clean-delayed-groupings)]
+  (reset! delayed-groups sorted-delayed-groups)))
 
 
 (defn wrap-area-with-path
@@ -949,11 +953,7 @@
 
 
 ; TODO:
-; - Utilize delayed-groups
-; - sort delayed-groups before using
 ; - wrap finished area only, not all everytime
-; - filter groupings by intersecting areas first before, doing
-;   the traversal for checking area independance
 ;
 (defn verify-grouped-solutions []
   ; wraps the areas of size 1
@@ -961,16 +961,17 @@
   (do
     (loop [n 2]
       (let [groups-of-n (all-groupings-for-size n)
-            groups-of-n (if (= (count groups-of-n) 0) (map #(set %1) (c/combinations (numbered-tiles-not-completed) 2)) groups-of-n)
-            ; groups-of-n (if (and (< (count (numbered-tiles-not-completed)) n)(= (count groups-of-n) 0)) @delayed-groups)
+            bla (println "COUNT OF GROUPS OF N " (count groups-of-n))
+            bla (println "@delayed-groups (before): " @delayed-groups)
+            bla (clean-delayed-groups)
+            bla (println "@delayed-groups (after): " @delayed-groups)
+            ; groups-of-n (if (= (count groups-of-n) 0) (map #(set %1) (c/combinations (numbered-tiles-not-completed) 2)) groups-of-n)
+            groups-of-n (if (= (count groups-of-n) 0)  @delayed-groups groups-of-n)
             ]
         (do
           (wrap-finished-areas-with-path)
-          (println "@delayed-groups (before): " @delayed-groups)
-          (clean-delayed-groups)
           (println " N: " n)
           (println "numbered-tiles-not-completed count: " (count (numbered-tiles-not-completed)))
-          (println "@delayed-groups (after): " @delayed-groups)
 
           (doseq [group groups-of-n]
             (do
