@@ -1,6 +1,7 @@
 (ns nurikabe.core
   (:gen-class)
-  ; (require [clojure.core.async :as async :refer  [>! <! >!! <!! go]])
+  (require [clojure.core.async :as async :refer  [chan >! <! >!! <!! go close! timeout]])
+  ; (require [clojure.core.async :as async :refer  [go]])
   (require [clojure.set :as s]
            [clojure.math.combinatorics :as c]))
 
@@ -181,12 +182,12 @@
 ; TODO: turn this into a global swappable atom
 
 ; (def b puzzle-board)
-; (def b puzzle-board-gm-walker-anderson) ;ruby 3 min; clojure 11 sec
+(def b puzzle-board-gm-walker-anderson) ;ruby 3 min; clojure 11 sec
 ; (def b puzzle-board-tester)
 ; (def b gm-prasanna) ; ruby 3 sec ; clojure 4 sec
-(def b sample8) ; ruby 38 sec; clojure 8 sec
+; (def b sample8) ; ruby 38 sec; clojure 8 sec
 ; (def b sample6) ;ruby 19 sec ; clojure 2 sec
-; (def b nikoli_10ka) ;ruby 2:08 sec; clojure 10 sec
+; (def b nikoli_10ka) ;ruby 2:08 sec; clojure 9 sec
 ; (def b tom-collyer37) ;ruby no way
 ; (def b sample7) ; ruby fail; clojure ?
 ; (def b nikoli_casty) ; ruby #1922 sec; clojure 23 sec
@@ -846,6 +847,17 @@
           coll))
 
 
+
+; (defn inter-reachable-groups?
+;   [group-tiles1 group-tiles2]
+;   "Check if a 2 given groups are in reach of each other.
+;    Userfull when doing async per group reduction,
+;    so that only independent groups run their reduction
+;    in parallel"
+
+
+;   )
+
 (defn cartesian-for-group-with-pre-existing-partial-cartesian
   [group]
   (let [n (count group)
@@ -946,7 +958,75 @@
 (defn numbered-tiles-from-delayed-groups []
   (reduce #(s/union %1 %2) #{}  (map #(read-string  (name %1))  (keys @delayed-groups))))
 
+
 (def solution-found (atom false))
+; (def groupings-completed (atom false))
+
+; (def current-groups (atom #{}))
+; (def completed-groups (atom #{}))
+; (def remaining-groups (atom #{}))
+; (def next-group (atom #{}))
+
+; (defn verify-solutions-async
+;   [solutions c]
+;   (let [bla (reset! remaining-groups solutions)
+;         ]
+;   ; (reduce
+;     ; (fn [r group]
+;     ;   ( conj r
+;     (while (not= @solution-found)
+;         (do
+;           (reset! next-group (first remaining-groups))
+
+;           (swap! remaining-groups rest)
+
+
+;              (go
+;                (let [group-tiles (if (set? group) group (read-string (str (name (first group)))))
+
+;                      bla (generate-possible-areas-for-group group-tiles)
+;                      group-areas-without-completed (cartesian-for-group group-tiles)
+;                      bla (add-areas-to-all-groupings group-tiles group-areas-without-completed) bla (clean-intersecting-areas-for-grouping group-tiles)
+
+;                      valid-areas-for-group (filter (fn [group-area]
+;                                                      (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
+;                                                            path-valid (path-continuous? board-for-area)
+;                                                            no-coliding-areas (no-coliding-areas-for-group? board-for-area group-tiles)]
+;                                                        (and path-valid no-coliding-areas)))
+;                                                    ((keyword (str group-tiles)) @all-groupings))
+;                      bla (add-areas-to-all-groupings group-tiles valid-areas-for-group)
+;                      stacked (try (stack-areas-to-discover-steady-tiles valid-areas-for-group) (catch Exception e (debug-repl)))]
+;                  (remove-invalid-areas-in-all-posible-areas group-tiles)
+
+;                  (doseq [group-area valid-areas-for-group]
+;                    (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
+;                      (do
+;                        ; (println)
+;                        ; (print-board board-for-area)
+;                        ; (println)
+;                        (if (and (= (solution-board-total-areas-size) (count (get-area-tiles-in-board board-for-area)))
+;                                 (path-without-squares? board-for-area))
+;                          (do
+;                            (print-board board-for-area)
+;                            (println "SOLUTION")
+;                            (wrap-finished-areas-with-path)
+;                            (reset! sb board-for-area)
+;                            (reset! solution-found true)
+;                            ; figure out how to rewrite the outer doseq
+;                            ; (throw  (Exception.  "Solution was found"))
+;                            )))))
+;                  ; (>! c "done")
+
+;                  ))
+;              )
+;              )
+;     ) ; let
+;              ; )
+;       ; )
+;     ; []
+;     ; solutions
+;     ; )
+;   )
 
 (defn verify-solutions
   [solutions]
@@ -954,37 +1034,44 @@
     (do
       (let [group-tiles (if (set? group) group (read-string (str (name (first group)))))
 
-            bla (generate-possible-areas-for-group group-tiles)
-            group-areas-without-completed (cartesian-for-group group-tiles)
-            bla (add-areas-to-all-groupings group-tiles group-areas-without-completed)
-            bla (clean-intersecting-areas-for-grouping group-tiles)
+	    bla (generate-possible-areas-for-group group-tiles)
+	    group-areas-without-completed (cartesian-for-group group-tiles)
+	    bla (add-areas-to-all-groupings group-tiles group-areas-without-completed)
+	    bla (clean-intersecting-areas-for-grouping group-tiles)
 
-            valid-areas-for-group (filter (fn [group-area]
-                                            (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
-                                                  path-valid (path-continuous? board-for-area)
-                                                  no-coliding-areas (no-coliding-areas-for-group? board-for-area group-tiles)]
-                                              (and path-valid no-coliding-areas)))
-                                          ((keyword (str group-tiles)) @all-groupings))
-            bla (add-areas-to-all-groupings group-tiles valid-areas-for-group)
-            stacked (try (stack-areas-to-discover-steady-tiles valid-areas-for-group) (catch Exception e (debug-repl)))]
-        (remove-invalid-areas-in-all-posible-areas group-tiles)
+	    valid-areas-for-group (filter (fn [group-area]
+					    (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
+						  path-valid (path-continuous? board-for-area)
+						  no-coliding-areas (no-coliding-areas-for-group? board-for-area group-tiles)]
+					      (and path-valid no-coliding-areas)))
+					  ((keyword (str group-tiles)) @all-groupings))
+	    bla (add-areas-to-all-groupings group-tiles valid-areas-for-group)
+	    stacked (try (stack-areas-to-discover-steady-tiles valid-areas-for-group) (catch Exception e (debug-repl)))]
+	(remove-invalid-areas-in-all-posible-areas group-tiles)
 
-        (doseq [group-area valid-areas-for-group]
-          (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
-            (do
-              (println)
-              (print-board board-for-area)
-              (println)
-            (if (and (= (solution-board-total-areas-size) (count (get-area-tiles-in-board board-for-area)))
-                     (path-without-squares? board-for-area))
-              (do
-                ; (print-board board-for-area)
-                ; (println "SOLUTION")
-                (wrap-finished-areas-with-path)
-                (reset! sb board-for-area)
-                (reset! solution-found true)
-                ; figure out how to rewrite the outer doseq
-                (throw  (Exception.  "Solution was found")))))))))))
+	(doseq [group-area valid-areas-for-group]
+	  (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
+	    (do
+	      (println)
+	      (print-board board-for-area)
+	      (println)
+	      (if (and (= (solution-board-total-areas-size) (count (get-area-tiles-in-board board-for-area)))
+		       (path-without-squares? board-for-area))
+		(do
+		  ; (print-board board-for-area)
+		  ; (println "SOLUTION")
+		  (wrap-finished-areas-with-path)
+		  (reset! sb board-for-area)
+		  (reset! solution-found true)
+		  ; figure out how to rewrite the outer doseq
+		  ; (throw  (Exception.  "Solution was found"))
+           )))))))))
+
+
+(defn wait-all-close
+  "Returns a channel that closes when all the given channels have closed."
+  [chans]
+  (async/filter< nil?  (async/merge chans)))
 
 
 ; TODO:
@@ -992,47 +1079,49 @@
 ; - calculate actual weight per group from multipling areas count form @all-possible-areas
 ;
 (defn verify-grouped-solutions []
-  ; wraps the areas of size 1
   (wrap-finished-areas-with-path)
   (println "Groups of N")
   (do
     (loop [n 2]
       (let [groups-of-n (all-groupings-for-size n)
-            bla (clean-delayed-groups) ]
+            bla (clean-delayed-groups)
+            ; c (chan (count groups-of-n))
+            ]
         (do
           (wrap-finished-areas-with-path)
           (println " N: " n)
           (println "Groups of n count: " (count groups-of-n))
           (println "Not completed numbered tiles: " (numbered-tiles-not-completed))
           (verify-solutions groups-of-n)
+          ; (verify-solutions groups-of-n c)
+            ; (<!!  (wait-all-close  (verify-solutions groups-of-n c)))
           )
         (if (>= (count (numbered-tiles-not-completed)) n)
           (recur (+ n 1)))))
 
-    (try  (do
-            (println "Groups of N done")
 
-            (println "Delayed groups")
+      (do
             ; Verify delayed groups
             (verify-solutions  @delayed-groups)
-            (println "Delayed groups done")
+            ; (verify-solutions  @delayed-groups c)
+            ; (<!!  (wait-all-close  (verify-solutions @delayed-groups (chan))))
 
-            (println "Final leftovers")
-            (println "Leftovers: " (numbered-tiles-not-completed))
-            (println "Delayed tiles: " (numbered-tiles-from-delayed-groups))
-            ; (if (= (numbered-tiles-not-completed) (numbered-tiles-from-delayed-groups))
-            (if true
+            (if (= (numbered-tiles-not-completed) (numbered-tiles-from-delayed-groups))
               (do
                 (println "Yay processing leftovers")
-              (verify-solutions #{(numbered-tiles-not-completed)})))
+            (verify-solutions #{(numbered-tiles-not-completed)})))
+            ; (verify-solutions #{(numbered-tiles-not-completed)} c)))
+
+            ; (<!!  (wait-all-close  (verify-solutions #{(numbered-tiles-not-completed)} (chan))))
+            (print  "Go-routines done.")
             (println "Final leftovers done"))
 
-         ; Rewrite this to avoid exceptoin to break out of teh outer doseq
-         (catch Exception e
-           (do
-             (wrap-finished-areas-with-path)
-             (println "SOLUTION BOARD")
-             (print-board (deref sb)))))))
+           ; (do
+           ;   (wrap-finished-areas-with-path)
+           ;   (println "SOLUTION BOARD")
+           ;   (print-board (deref sb)))
+           ; )
+  ))
 
 
 (defn solutions-with-correct-path
