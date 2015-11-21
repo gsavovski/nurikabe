@@ -779,7 +779,7 @@
 (defn span-area-within-board
   [area]
   (set
-    (filter (fn [[x y]] (and (>= x 0) (>= y 0)))  area)))
+    (filter (fn [[x y]] (and (< x (board-row-count)) (< y (board-column-count)) (>= x 0) (>= y 0)))  area)))
 
 
 (defn board-with-only-2-numbered-tiles
@@ -847,13 +847,30 @@
           coll))
 
 
+; (s/intersection                                    ;+1 to include touching areas
+; (span-area-within-board (span-area-size-n-for-tile (+ 1 val1) num-tile1))
+
+(defn diamond-area-for-group
+  ([group-tiles]
+   (diamond-area-for-group group-tiles 0))
+  ([group-tiles border-size]
+   (reduce
+     (fn [unified-diamonds num-tile]
+       (let [val (get-tile-value b num-tile)]
+       (s/union unified-diamonds (span-area-within-board (span-area-size-n-for-tile (+ border-size val) num-tile)) )
+       ))
+     #{}
+     group-tiles
+     )))
+
 
 ; (defn inter-reachable-groups?
 ;   [group-tiles1 group-tiles2]
 ;   "Check if a 2 given groups are in reach of each other.
-;    Userfull when doing async per group reduction,
+;    Usefull when doing async per group reduction,
 ;    so that only independent groups run their reduction
 ;    in parallel"
+;    (let [unified-diamond-area1 ])
 
 
 ;   )
