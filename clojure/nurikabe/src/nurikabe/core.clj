@@ -860,20 +860,19 @@
        (s/union unified-diamonds (span-area-within-board (span-area-size-n-for-tile (+ border-size val) num-tile)) )
        ))
      #{}
-     group-tiles
-     )))
+     group-tiles)))
 
 
-; (defn inter-reachable-groups?
-;   [group-tiles1 group-tiles2]
-;   "Check if a 2 given groups are in reach of each other.
-;    Usefull when doing async per group reduction,
-;    so that only independent groups run their reduction
-;    in parallel"
-;    (let [unified-diamond-area1 ])
+(defn independent-groups?
+  [group-tiles1 group-tiles2]
+  "Check if a 2 given groups are in reach of each other.
+   Usefull when doing async per group reduction,
+   so that only independent groups run their reduction
+   in parallel"
+   (let [group-diamond1 (diamond-area-for-group group-tiles1)
+         group-diamond2 (diamond-area-for-group group-tiles2 1)]
+    (empty? (s/intersection group-diamond1 group-diamond2))))
 
-
-;   )
 
 (defn cartesian-for-group-with-pre-existing-partial-cartesian
   [group]
