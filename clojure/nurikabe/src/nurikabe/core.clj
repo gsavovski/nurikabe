@@ -976,73 +976,110 @@
 
 
 (def solution-found (atom false))
-; (def groupings-completed (atom false))
+(def groupings-completed (atom false))
 
-; (def current-groups (atom #{}))
-; (def completed-groups (atom #{}))
-; (def remaining-groups (atom #{}))
-; (def next-group (atom #{}))
+(def current-groups (atom #{}))
+(def completed-groups (atom #{}))
 
-; (defn verify-solutions-async
-;   [solutions c]
-;   (let [bla (reset! remaining-groups solutions)
-;         ]
-;   ; (reduce
-;     ; (fn [r group]
-;     ;   ( conj r
-;     (while (not= @solution-found)
-;         (do
-;           (reset! next-group (first remaining-groups))
-
-;           (swap! remaining-groups rest)
+(def remaining-groups (atom []))
+(def current-group (atom #{}))
 
 
-;              (go
-;                (let [group-tiles (if (set? group) group (read-string (str (name (first group)))))
+(defn verify-group-async [group]
+  (do
+    (println "IN ASYNC")
+    (go
+      (let [group-tiles (if (set? group) group (read-string (str (name (first group)))))
 
-;                      bla (generate-possible-areas-for-group group-tiles)
-;                      group-areas-without-completed (cartesian-for-group group-tiles)
-;                      bla (add-areas-to-all-groupings group-tiles group-areas-without-completed) bla (clean-intersecting-areas-for-grouping group-tiles)
+            bla (generate-possible-areas-for-group group-tiles)
+            group-areas-without-completed (cartesian-for-group group-tiles)
+            bla (add-areas-to-all-groupings group-tiles group-areas-without-completed)
+            bla (clean-intersecting-areas-for-grouping group-tiles)
 
-;                      valid-areas-for-group (filter (fn [group-area]
-;                                                      (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
-;                                                            path-valid (path-continuous? board-for-area)
-;                                                            no-coliding-areas (no-coliding-areas-for-group? board-for-area group-tiles)]
-;                                                        (and path-valid no-coliding-areas)))
-;                                                    ((keyword (str group-tiles)) @all-groupings))
-;                      bla (add-areas-to-all-groupings group-tiles valid-areas-for-group)
-;                      stacked (try (stack-areas-to-discover-steady-tiles valid-areas-for-group) (catch Exception e (debug-repl)))]
-;                  (remove-invalid-areas-in-all-posible-areas group-tiles)
+            valid-areas-for-group (filter (fn [group-area]
+                                            (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area)))
+                                                  path-valid (path-continuous? board-for-area)
+                                                  no-coliding-areas (no-coliding-areas-for-group? board-for-area group-tiles)]
+                                              (and path-valid no-coliding-areas)))
+                                          ((keyword (str group-tiles)) @all-groupings))
+            bla (add-areas-to-all-groupings group-tiles valid-areas-for-group)
+            stacked (try (stack-areas-to-discover-steady-tiles valid-areas-for-group) (catch Exception e (debug-repl)))]
+        (remove-invalid-areas-in-all-posible-areas group-tiles)
 
-;                  (doseq [group-area valid-areas-for-group]
-;                    (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
-;                      (do
-;                        ; (println)
-;                        ; (print-board board-for-area)
-;                        ; (println)
-;                        (if (and (= (solution-board-total-areas-size) (count (get-area-tiles-in-board board-for-area)))
-;                                 (path-without-squares? board-for-area))
-;                          (do
-;                            (print-board board-for-area)
-;                            (println "SOLUTION")
-;                            (wrap-finished-areas-with-path)
-;                            (reset! sb board-for-area)
-;                            (reset! solution-found true)
-;                            ; figure out how to rewrite the outer doseq
-;                            ; (throw  (Exception.  "Solution was found"))
-;                            )))))
-;                  ; (>! c "done")
+        (doseq [group-area valid-areas-for-group]
+          (let [board-for-area (populate-board-with (merge-areas-into-one (vec group-area))) ]
+            (do
+              ; (println)
+              ; (print-board board-for-area)
+              ; (println)
+              (if (and (= (solution-board-total-areas-size) (count (get-area-tiles-in-board board-for-area)))
+                       (path-without-squares? board-for-area))
+                (do
+                  (print-board board-for-area)
+                  (println "SOLUTION")
+                  (wrap-finished-areas-with-path)
+                  (reset! sb board-for-area)
+                  (reset! solution-found true)
+                  ; figure out how to rewrite the outer doseq
+                  ; (throw  (Exception.  "Solution was found"))
+                  )))))
 
-;                  ))
-;              )
-;              )
-;     ) ; let
-;              ; )
-;       ; )
-;     ; []
-;     ; solutions
-;     ; )
-;   )
+   (swap! current-groups disj group)
+   (swap! completed-groups conj group)
+
+        ))
+             ))
+
+
+(defn verify-solutions-async
+  [solutions]
+  (do
+   (println "Verify ASYNC")
+   (println "Solutions " solutions)
+
+   (debug-repl)
+  (let [bla (reset! remaining-groups solutions)]
+  (while (not (or @solution-found @groupings-completed))
+
+    (do
+      ; (println "IN while")
+      (println "Current Groups: " @current-groups)
+      (println "Remainng: " @remaining-groups)
+    (let [
+          current-group (first @remaining-groups)
+          bla (println "HERE current group " current-group)
+          current-group (if (and (not (set? current-group)) (not (nil? current-group))) (read-string (str (name (first current-group))))  current-group )
+          remaining (vec (rest @remaining-groups))
+          bla (if (and  (empty? current-group) (empty? @current-groups)) (reset! groupings-completed true))
+          bla (reset! remaining-groups remaining)
+          ]
+
+      (if (not (empty? current-group))
+       (do
+            ; (if (= current-group #{[5 4]  [7 8]  [1 4]  [8 5]  [2 1]}) (debug-repl) )
+        (if (every? #(independent-groups? current-group %1) @current-groups)
+
+          (do
+            (println "CURRENT GROUP (independent): " current-group)
+            (println "Current Groups: " @current-groups)
+            (swap! current-groups conj current-group)
+            (if (> (count @current-groups) 1) (debug-repl) )
+            (verify-group-async current-group))
+          (do
+            ; (if (= current-group #{[5 4]  [7 8]  [1 4]  [8 5]  [2 1]}) (debug-repl) )
+            (println "CURRENT GROUP (no-go): " current-group)
+            (println "Current Groups: " @current-groups)
+            ; (reset! groupings-completed true)
+            (reset! remaining-groups (conj @remaining-groups current-group))
+            )
+          ; (println "Remaining nogo: " @remaining-groups)
+
+          ))
+
+
+      ) ; empty group
+      ))))))
+
 
 (defn verify-solutions
   [solutions]
@@ -1108,8 +1145,9 @@
           (println " N: " n)
           (println "Groups of n count: " (count groups-of-n))
           (println "Not completed numbered tiles: " (numbered-tiles-not-completed))
-          (verify-solutions groups-of-n)
-          ; (verify-solutions groups-of-n c)
+          ; (verify-solutions groups-of-n)
+          (reset! groupings-completed false)
+          (verify-solutions-async groups-of-n)
             ; (<!!  (wait-all-close  (verify-solutions groups-of-n c)))
           )
         (if (>= (count (numbered-tiles-not-completed)) n)
@@ -1117,26 +1155,30 @@
 
 
       (do
-            ; Verify delayed groups
-            (verify-solutions  @delayed-groups)
+            (println  "Verify delayed groups")
+            (reset! groupings-completed false)
+            (verify-solutions-async  @delayed-groups)
+            ; (verify-solutions  @delayed-groups)
             ; (verify-solutions  @delayed-groups c)
             ; (<!!  (wait-all-close  (verify-solutions @delayed-groups (chan))))
 
             (if (= (numbered-tiles-not-completed) (numbered-tiles-from-delayed-groups))
               (do
                 (println "Yay processing leftovers")
-            (verify-solutions #{(numbered-tiles-not-completed)})))
+            (reset! groupings-completed false)
+            (verify-solutions-async #{(numbered-tiles-not-completed)})))
+            ; (verify-solutions #{(numbered-tiles-not-completed)})))
             ; (verify-solutions #{(numbered-tiles-not-completed)} c)))
 
             ; (<!!  (wait-all-close  (verify-solutions #{(numbered-tiles-not-completed)} (chan))))
-            (print  "Go-routines done.")
-            (println "Final leftovers done"))
+            ; (print  "Go-routines done.")
+            ; (println "Final leftovers done"))
 
-           ; (do
-           ;   (wrap-finished-areas-with-path)
-           ;   (println "SOLUTION BOARD")
-           ;   (print-board (deref sb)))
-           ; )
+           (do
+             (wrap-finished-areas-with-path)
+             (println "SOLUTION BOARD")
+             (print-board (deref sb)))
+           )
   ))
 
 

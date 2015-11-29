@@ -260,3 +260,46 @@
 
   (fact (populate-board-with (span-area-within-board (diamond-area-for-group (set (get-numbered-tiles)))))
         => test-groups-independent-created))
+
+
+
+
+
+; (def test-groups-independent
+;    [[U U U U U U U U U U U]
+;     [U U U U U U U U U U U]
+;     [U U U U U U U U U U U]
+;     [U U U U U U U U U U U]
+;     [U U U 3 U U U U U U U]
+;     [U U U U U U U U U U U]
+;     [U U U 3 U U U U 2 U U]
+;     [U U U U U U U U U U U]
+;     [U U U U U U U U U U U]
+;     [U U U U U U U U 3 U U]
+;     [U U U U U U U U U U U]])
+
+
+; (def test-groups-independent-created
+;    [[U U U U U U U U U U U]
+;     [U U U U U U U U U U U]
+;     [U U U 1 U U U U U U U]
+;     [U U 1 1 1 U U U U U U]
+;     [U 1 1 3 1 1 U U U U U]
+;     [U U 1 1 1 U U U 1 U U]
+;     [U 1 1 3 1 1 U 1 2 1 U]
+;     [U U 1 1 1 U U U 1 U U]
+;     [U U U 1 U U U 1 1 1 U]
+;     [U U U U U U 1 1 3 1 1]
+;     [U U U U U U U 1 1 1 U]])
+
+
+; (with-redefs [b test-groups-independent
+;               sb (atom test-groups-independent)]
+
+;   (fact (get-numbered-tiles) => '([4 3] [6 3] [6 8] [9 8]))
+
+;   (fact (independent-groups? #{[4 3] [6 3]} #{})
+;         => true )
+
+;   (fact (populate-board-with (span-area-within-board (diamond-area-for-group (set (get-numbered-tiles)))))
+;         => test-groups-independent-created))
